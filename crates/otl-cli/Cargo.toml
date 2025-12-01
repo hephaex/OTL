@@ -1,0 +1,23 @@
+[package]
+name = "otl-cli"
+description = "Command-line interface for OTL"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "otl"
+path = "src/main.rs"
+
+[dependencies]
+otl-core = { path = "../otl-core" }
+otl-parser = { path = "../otl-parser" }
+clap = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }

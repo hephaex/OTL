@@ -1,0 +1,24 @@
+[package]
+name = "otl-rag"
+description = "RAG (Retrieval-Augmented Generation) orchestrator"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+otl-core = { path = "../otl-core" }
+
+tokio = { workspace = true }
+async-trait = { workspace = true }
+futures = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+uuid = { workspace = true }
+regex = "1.10"
+
+[dev-dependencies]
+tokio-test = { workspace = true }
