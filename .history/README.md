@@ -131,7 +131,7 @@ Reviewer → review.md 작성
 ❌ 자동 생성 표시 금지
 ❌ 외부 공개 금지
 
-✅ 저작자는 hep@gmail.com으로 표기
+✅ 저작자는 hephaex@gmail.com으로 표기
 ✅ "Designed by author", "Implemented by author" 사용
 ```
 
@@ -146,7 +146,7 @@ Reviewer → review.md 작성
 
 ## 메타데이터
 - 작성일: YYYY-MM-DD
-- 작성자: hep@gmail.com
+- 작성자: hephaex@gmail.com
 - 담당 에이전트: Developer
 
 ## 구현 내용
@@ -172,7 +172,7 @@ Reviewer → review.md 작성
 
 ## 메타데이터
 - 리뷰일: YYYY-MM-DD
-- 리뷰어: hep@gmail.com
+- 리뷰어: hephaex@gmail.com
 - 담당 에이전트: Reviewer
 
 ## 리뷰 요약
@@ -204,7 +204,7 @@ Reviewer → review.md 작성
 
 ## 메타데이터
 - 검증일: YYYY-MM-DD
-- 검증자: hep@gmail.com
+- 검증자: hephaex@gmail.com
 - 담당 에이전트: Tester
 
 ## 테스트 환경
@@ -238,7 +238,7 @@ Reviewer → review.md 작성
 
 ## 메타데이터
 - 수정일: YYYY-MM-DD
-- 수정자: hep@gmail.com
+- 수정자: hephaex@gmail.com
 - 담당 에이전트: Developer
 
 ## 수정 사항
@@ -263,7 +263,7 @@ Reviewer → review.md 작성
 
 ## 메타데이터
 - 승인일: YYYY-MM-DD
-- 승인자: hep@gmail.com
+- 승인자: hephaex@gmail.com
 - 담당 에이전트: Architect
 
 ## Phase 요약
@@ -287,4 +287,4 @@ Reviewer → review.md 작성
 
 ---
 
-*Author: hep@gmail.com*
+*Author: hephaex@gmail.com*

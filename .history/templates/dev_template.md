@@ -9,7 +9,7 @@
 | 항목 | 값 |
 |:-----|:---|
 | 작성일 | YYYY-MM-DD |
-| 작성자 | hep@gmail.com |
+| 작성자 | hephaex@gmail.com |
 | 담당 에이전트 | Developer |
 | Sprint | X |
 | Phase | Y |
@@ -174,4 +174,4 @@ test result: ok. X passed; 0 failed; 0 ignored
 
 ---
 
-*Author: hep@gmail.com*
+*Author: hephaex@gmail.com*

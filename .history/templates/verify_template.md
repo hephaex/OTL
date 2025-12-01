@@ -9,7 +9,7 @@
 | 항목 | 값 |
 |:-----|:---|
 | 검증일 | YYYY-MM-DD |
-| 검증자 | hep@gmail.com |
+| 검증자 | hephaex@gmail.com |
 | 담당 에이전트 | Tester |
 | Sprint | X |
 | Phase | Y |
@@ -224,4 +224,4 @@ test result: ok. 42 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
 
 ---
 
-*Tester: hep@gmail.com*
+*Tester: hephaex@gmail.com*

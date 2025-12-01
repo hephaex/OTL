@@ -6,7 +6,7 @@ OTL (Ontology-based knowledge sysTem Library) is a high-performance knowledge ma
 
 ## Author
 
-- **Author**: hep@gmail.com
+- **Author**: hephaex@gmail.com
 - **License**: Apache-2.0
 
 ## Architecture
@@ -45,4 +45,4 @@ See [SPRINT_PLAN.md](SPRINT_PLAN.md) for implementation roadmap.
 
 ---
 
-© 2024 hep@gmail.com. All rights reserved.
+© 2024 hephaex@gmail.com. All rights reserved.

@@ -1,0 +1,329 @@
+<?xml version="1.0"?>
+<rdf:RDF xmlns="http://otl.hephaex.com/ontology/hr#"
+     xml:base="http://otl.hephaex.com/ontology/hr"
+     xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+     xmlns:owl="http://www.w3.org/2002/07/owl#"
+     xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
+     xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
+     xmlns:hr="http://otl.hephaex.com/ontology/hr#">
+    
+    <owl:Ontology rdf:about="http://otl.hephaex.com/ontology/hr">
+        <rdfs:label>OTL HR Policy Ontology</rdfs:label>
+        <rdfs:comment>Ontology for Human Resources policy and procedure domain</rdfs:comment>
+        <owl:versionInfo>1.0.0</owl:versionInfo>
+    </owl:Ontology>
+
+    <!-- ========================================== -->
+    <!-- Classes -->
+    <!-- ========================================== -->
+    
+    <!-- Person Classes -->
+    <owl:Class rdf:about="#Employee">
+        <rdfs:label>Employee</rdfs:label>
+        <rdfs:comment>A person employed by the organization</rdfs:comment>
+    </owl:Class>
+    
+    <owl:Class rdf:about="#Manager">
+        <rdfs:subClassOf rdf:resource="#Employee"/>
+        <rdfs:label>Manager</rdfs:label>
+        <rdfs:comment>An employee with management responsibilities</rdfs:comment>
+    </owl:Class>
+    
+    <owl:Class rdf:about="#HRStaff">
+        <rdfs:subClassOf rdf:resource="#Employee"/>
+        <rdfs:label>HR Staff</rdfs:label>
+        <rdfs:comment>Employee in the Human Resources department</rdfs:comment>
+    </owl:Class>
+
+    <!-- Organizational Classes -->
+    <owl:Class rdf:about="#Department">
+        <rdfs:label>Department</rdfs:label>
+        <rdfs:comment>An organizational unit within the company</rdfs:comment>
+    </owl:Class>
+    
+    <owl:Class rdf:about="#Position">
+        <rdfs:label>Position</rdfs:label>
+        <rdfs:comment>A job position or role within the organization</rdfs:comment>
+    </owl:Class>
+    
+    <owl:Class rdf:about="#Grade">
+        <rdfs:label>Grade</rdfs:label>
+        <rdfs:comment>Employment grade or level (e.g., Junior, Senior, Manager)</rdfs:comment>
+    </owl:Class>
+
+    <!-- Leave Classes -->
+    <owl:Class rdf:about="#LeaveType">
+        <rdfs:label>Leave Type</rdfs:label>
+        <rdfs:comment>Category of employee leave</rdfs:comment>
+    </owl:Class>
+    
+    <owl:Class rdf:about="#AnnualLeave">
+        <rdfs:subClassOf rdf:resource="#LeaveType"/>
+        <rdfs:label>Annual Leave</rdfs:label>
+        <rdfs:comment>Regular vacation leave</rdfs:comment>
+    </owl:Class>
+    
+    <owl:Class rdf:about="#SickLeave">
+        <rdfs:subClassOf rdf:resource="#LeaveType"/>
+        <rdfs:label>Sick Leave</rdfs:label>
+        <rdfs:comment>Leave due to illness</rdfs:comment>
+    </owl:Class>
+    
+    <owl:Class rdf:about="#ParentalLeave">
+        <rdfs:subClassOf rdf:resource="#LeaveType"/>
+        <rdfs:label>Parental Leave</rdfs:label>
+        <rdfs:comment>Leave for childcare</rdfs:comment>
+    </owl:Class>
+    
+    <owl:Class rdf:about="#CongratulatoryLeave">
+        <rdfs:subClassOf rdf:resource="#LeaveType"/>
+        <rdfs:label>Congratulatory/Condolence Leave</rdfs:label>
+        <rdfs:comment>Leave for family events (marriage, death, etc.)</rdfs:comment>
+    </owl:Class>
+    
+    <owl:Class rdf:about="#LeaveBalance">
+        <rdfs:label>Leave Balance</rdfs:label>
+        <rdfs:comment>Employee's remaining leave days</rdfs:comment>
+    </owl:Class>
+
+    <!-- Process Classes -->
+    <owl:Class rdf:about="#ApprovalProcess">
+        <rdfs:label>Approval Process</rdfs:label>
+        <rdfs:comment>A workflow requiring authorization</rdfs:comment>
+    </owl:Class>
+    
+    <owl:Class rdf:about="#ApprovalStep">
+        <rdfs:label>Approval Step</rdfs:label>
+        <rdfs:comment>A single step in an approval workflow</rdfs:comment>
+    </owl:Class>
+
+    <!-- Document Classes -->
+    <owl:Class rdf:about="#Regulation">
+        <rdfs:label>Regulation</rdfs:label>
+        <rdfs:comment>An official company policy or rule</rdfs:comment>
+    </owl:Class>
+    
+    <owl:Class rdf:about="#Form">
+        <rdfs:label>Form</rdfs:label>
+        <rdfs:comment>A document template for submissions</rdfs:comment>
+    </owl:Class>
+    
+    <owl:Class rdf:about="#Document">
+        <rdfs:label>Document</rdfs:label>
+        <rdfs:comment>Any official document in the knowledge base</rdfs:comment>
+    </owl:Class>
+
+    <!-- Expense Classes -->
+    <owl:Class rdf:about="#ExpenseType">
+        <rdfs:label>Expense Type</rdfs:label>
+        <rdfs:comment>Category of business expense</rdfs:comment>
+    </owl:Class>
+    
+    <owl:Class rdf:about="#TravelExpense">
+        <rdfs:subClassOf rdf:resource="#ExpenseType"/>
+        <rdfs:label>Travel Expense</rdfs:label>
+        <rdfs:comment>Expenses related to business travel</rdfs:comment>
+    </owl:Class>
+
+    <!-- ========================================== -->
+    <!-- Object Properties (Relationships) -->
+    <!-- ========================================== -->
+    
+    <!-- Employee relationships -->
+    <owl:ObjectProperty rdf:about="#belongsTo">
+        <rdfs:domain rdf:resource="#Employee"/>
+        <rdfs:range rdf:resource="#Department"/>
+        <rdfs:label>belongs to</rdfs:label>
+        <rdfs:comment>Employee is a member of a department</rdfs:comment>
+    </owl:ObjectProperty>
+    
+    <owl:ObjectProperty rdf:about="#hasPosition">
+        <rdfs:domain rdf:resource="#Employee"/>
+        <rdfs:range rdf:resource="#Position"/>
+        <rdfs:label>has position</rdfs:label>
+        <rdfs:comment>Employee holds a position</rdfs:comment>
+    </owl:ObjectProperty>
+    
+    <owl:ObjectProperty rdf:about="#hasGrade">
+        <rdfs:domain rdf:resource="#Employee"/>
+        <rdfs:range rdf:resource="#Grade"/>
+        <rdfs:label>has grade</rdfs:label>
+        <rdfs:comment>Employee has an employment grade</rdfs:comment>
+    </owl:ObjectProperty>
+    
+    <owl:ObjectProperty rdf:about="#reportsTo">
+        <rdfs:domain rdf:resource="#Employee"/>
+        <rdfs:range rdf:resource="#Employee"/>
+        <rdfs:label>reports to</rdfs:label>
+        <rdfs:comment>Employee reports to another employee (manager)</rdfs:comment>
+    </owl:ObjectProperty>
+    
+    <owl:ObjectProperty rdf:about="#hasLeaveBalance">
+        <rdfs:domain rdf:resource="#Employee"/>
+        <rdfs:range rdf:resource="#LeaveBalance"/>
+        <rdfs:label>has leave balance</rdfs:label>
+        <rdfs:comment>Employee has remaining leave days</rdfs:comment>
+    </owl:ObjectProperty>
+
+    <!-- Department relationships -->
+    <owl:ObjectProperty rdf:about="#managedBy">
+        <rdfs:domain rdf:resource="#Department"/>
+        <rdfs:range rdf:resource="#Manager"/>
+        <rdfs:label>managed by</rdfs:label>
+        <rdfs:comment>Department is led by a manager</rdfs:comment>
+    </owl:ObjectProperty>
+    
+    <owl:ObjectProperty rdf:about="#parentDepartment">
+        <rdfs:domain rdf:resource="#Department"/>
+        <rdfs:range rdf:resource="#Department"/>
+        <rdfs:label>parent department</rdfs:label>
+        <rdfs:comment>Department's parent in the org hierarchy</rdfs:comment>
+    </owl:ObjectProperty>
+
+    <!-- Leave relationships -->
+    <owl:ObjectProperty rdf:about="#requiresApproval">
+        <rdfs:domain rdf:resource="#LeaveType"/>
+        <rdfs:range rdf:resource="#ApprovalProcess"/>
+        <rdfs:label>requires approval</rdfs:label>
+        <rdfs:comment>Leave type needs this approval process</rdfs:comment>
+    </owl:ObjectProperty>
+    
+    <owl:ObjectProperty rdf:about="#forLeaveType">
+        <rdfs:domain rdf:resource="#LeaveBalance"/>
+        <rdfs:range rdf:resource="#LeaveType"/>
+        <rdfs:label>for leave type</rdfs:label>
+        <rdfs:comment>Balance applies to this leave type</rdfs:comment>
+    </owl:ObjectProperty>
+    
+    <owl:ObjectProperty rdf:about="#requiresDocument">
+        <rdfs:domain rdf:resource="#LeaveType"/>
+        <rdfs:range rdf:resource="#Document"/>
+        <rdfs:label>requires document</rdfs:label>
+        <rdfs:comment>Leave type requires supporting documents</rdfs:comment>
+    </owl:ObjectProperty>
+
+    <!-- Process relationships -->
+    <owl:ObjectProperty rdf:about="#hasStep">
+        <rdfs:domain rdf:resource="#ApprovalProcess"/>
+        <rdfs:range rdf:resource="#ApprovalStep"/>
+        <rdfs:label>has step</rdfs:label>
+        <rdfs:comment>Process includes this approval step</rdfs:comment>
+    </owl:ObjectProperty>
+    
+    <owl:ObjectProperty rdf:about="#approvedBy">
+        <rdfs:domain rdf:resource="#ApprovalStep"/>
+        <rdfs:range rdf:resource="#Position"/>
+        <rdfs:label>approved by</rdfs:label>
+        <rdfs:comment>Step requires approval from this position</rdfs:comment>
+    </owl:ObjectProperty>
+    
+    <owl:ObjectProperty rdf:about="#usesForm">
+        <rdfs:domain rdf:resource="#ApprovalProcess"/>
+        <rdfs:range rdf:resource="#Form"/>
+        <rdfs:label>uses form</rdfs:label>
+        <rdfs:comment>Process requires this form</rdfs:comment>
+    </owl:ObjectProperty>
+
+    <!-- Regulation relationships -->
+    <owl:ObjectProperty rdf:about="#governs">
+        <rdfs:domain rdf:resource="#Regulation"/>
+        <rdfs:range rdf:resource="#LeaveType"/>
+        <rdfs:label>governs</rdfs:label>
+        <rdfs:comment>Regulation governs this leave type</rdfs:comment>
+    </owl:ObjectProperty>
+    
+    <owl:ObjectProperty rdf:about="#defines">
+        <rdfs:domain rdf:resource="#Regulation"/>
+        <rdfs:range rdf:resource="#ApprovalProcess"/>
+        <rdfs:label>defines</rdfs:label>
+        <rdfs:comment>Regulation defines this process</rdfs:comment>
+    </owl:ObjectProperty>
+    
+    <owl:ObjectProperty rdf:about="#supersedes">
+        <rdfs:domain rdf:resource="#Regulation"/>
+        <rdfs:range rdf:resource="#Regulation"/>
+        <rdfs:label>supersedes</rdfs:label>
+        <rdfs:comment>Regulation replaces an older regulation</rdfs:comment>
+    </owl:ObjectProperty>
+
+    <!-- ========================================== -->
+    <!-- Datatype Properties -->
+    <!-- ========================================== -->
+    
+    <owl:DatatypeProperty rdf:about="#employeeId">
+        <rdfs:domain rdf:resource="#Employee"/>
+        <rdfs:range rdf:resource="xsd:string"/>
+        <rdfs:label>employee ID</rdfs:label>
+    </owl:DatatypeProperty>
+    
+    <owl:DatatypeProperty rdf:about="#name">
+        <rdfs:domain rdf:resource="#Employee"/>
+        <rdfs:range rdf:resource="xsd:string"/>
+        <rdfs:label>name</rdfs:label>
+    </owl:DatatypeProperty>
+    
+    <owl:DatatypeProperty rdf:about="#hireDate">
+        <rdfs:domain rdf:resource="#Employee"/>
+        <rdfs:range rdf:resource="xsd:date"/>
+        <rdfs:label>hire date</rdfs:label>
+    </owl:DatatypeProperty>
+    
+    <owl:DatatypeProperty rdf:about="#maxDays">
+        <rdfs:domain rdf:resource="#LeaveType"/>
+        <rdfs:range rdf:resource="xsd:integer"/>
+        <rdfs:label>maximum days</rdfs:label>
+        <rdfs:comment>Maximum number of leave days allowed</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+    <owl:DatatypeProperty rdf:about="#remainingDays">
+        <rdfs:domain rdf:resource="#LeaveBalance"/>
+        <rdfs:range rdf:resource="xsd:decimal"/>
+        <rdfs:label>remaining days</rdfs:label>
+    </owl:DatatypeProperty>
+    
+    <owl:DatatypeProperty rdf:about="#effectiveDate">
+        <rdfs:domain rdf:resource="#Regulation"/>
+        <rdfs:range rdf:resource="xsd:date"/>
+        <rdfs:label>effective date</rdfs:label>
+    </owl:DatatypeProperty>
+    
+    <owl:DatatypeProperty rdf:about="#stepOrder">
+        <rdfs:domain rdf:resource="#ApprovalStep"/>
+        <rdfs:range rdf:resource="xsd:integer"/>
+        <rdfs:label>step order</rdfs:label>
+        <rdfs:comment>Order of the step in the approval process</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+    <owl:DatatypeProperty rdf:about="#departmentCode">
+        <rdfs:domain rdf:resource="#Department"/>
+        <rdfs:range rdf:resource="xsd:string"/>
+        <rdfs:label>department code</rdfs:label>
+    </owl:DatatypeProperty>
+    
+    <owl:DatatypeProperty rdf:about="#regulationCode">
+        <rdfs:domain rdf:resource="#Regulation"/>
+        <rdfs:range rdf:resource="xsd:string"/>
+        <rdfs:label>regulation code</rdfs:label>
+    </owl:DatatypeProperty>
+    
+    <owl:DatatypeProperty rdf:about="#isPaid">
+        <rdfs:domain rdf:resource="#LeaveType"/>
+        <rdfs:range rdf:resource="xsd:boolean"/>
+        <rdfs:label>is paid</rdfs:label>
+        <rdfs:comment>Whether the leave is paid</rdfs:comment>
+    </owl:DatatypeProperty>
+    
+    <owl:DatatypeProperty rdf:about="#requiresAdvanceNotice">
+        <rdfs:domain rdf:resource="#LeaveType"/>
+        <rdfs:range rdf:resource="xsd:boolean"/>
+        <rdfs:label>requires advance notice</rdfs:label>
+    </owl:DatatypeProperty>
+    
+    <owl:DatatypeProperty rdf:about="#advanceNoticeDays">
+        <rdfs:domain rdf:resource="#LeaveType"/>
+        <rdfs:range rdf:resource="xsd:integer"/>
+        <rdfs:label>advance notice days</rdfs:label>
+        <rdfs:comment>Number of days notice required</rdfs:comment>
+    </owl:DatatypeProperty>
+
+</rdf:RDF>

@@ -15,7 +15,7 @@ members = [
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
-authors = ["hep@gmail.com"]
+authors = ["hephaex@gmail.com"]
 license = "Apache-2.0"
 repository = "https://github.com/hephaex/OTL"
 readme = "README.md"
