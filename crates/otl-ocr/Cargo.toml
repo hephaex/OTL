@@ -1,0 +1,14 @@
+[package]
+name = "otl-ocr"
+description = "OCR integration for scanned documents"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+otl-core = { path = "../otl-core" }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+tokio = { workspace = true }

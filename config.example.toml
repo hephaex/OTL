@@ -1,0 +1,75 @@
+# OTL Configuration File
+#
+# Copy this file to config.toml and adjust values as needed.
+# Environment variables override these settings.
+
+[server]
+host = "0.0.0.0"
+port = 8080
+request_timeout_secs = 30
+max_body_size = 10485760  # 10MB
+cors_enabled = true
+cors_origins = ["*"]
+
+[database]
+# PostgreSQL (metadata, ACL)
+postgres_url = "postgres://otl:otl_dev_password@localhost:5432/otl"
+postgres_pool_size = 10
+
+# SurrealDB (graph)
+surrealdb_url = "ws://localhost:8000"
+surrealdb_user = "root"
+surrealdb_pass = "root"
+surrealdb_namespace = "otl"
+surrealdb_database = "knowledge"
+
+# Qdrant (vectors)
+qdrant_url = "http://localhost:6334"
+qdrant_collection = "otl_chunks"
+vector_dimension = 1536  # Must match embedding model
+
+[llm]
+# Provider: "openai", "ollama", or "azure"
+provider = "openai"
+
+# OpenAI settings
+# openai_api_key = "sk-..."  # Set via OPENAI_API_KEY env var
+# openai_base_url = "https://api.openai.com/v1"  # Optional, for Azure
+
+# Ollama settings (for local development)
+ollama_url = "http://localhost:11434"
+
+# Model settings
+model = "gpt-4o-mini"
+embedding_model = "text-embedding-3-small"
+max_tokens = 2048
+temperature = 0.1
+timeout_secs = 60
+
+[rag]
+# Vector search
+vector_top_k = 20
+
+# Graph traversal
+graph_depth = 2
+
+# Final results
+final_top_k = 5
+
+# Reciprocal Rank Fusion
+rrf_k = 60.0
+vector_weight = 1.0
+graph_weight = 1.5
+
+# Context
+max_context_length = 8000
+include_ontology = true
+
+# Chunking
+chunk_size = 1000
+chunk_overlap = 200
+
+[logging]
+level = "info"  # trace, debug, info, warn, error
+json_format = false
+include_location = false

@@ -1,0 +1,18 @@
+[package]
+name = "otl-vector"
+description = "Vector database abstraction layer"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+otl-core = { path = "../otl-core" }
+qdrant-client = { workspace = true }
+tokio = { workspace = true }
+async-trait = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+uuid = { workspace = true }

@@ -1,0 +1,23 @@
+[package]
+name = "otl-core"
+description = "Core domain models and traits for OTL"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+async-trait = { workspace = true }
+futures = { workspace = true }
+toml = "0.8"
+
+[dev-dependencies]
+tokio = { workspace = true }
+tokio-test = { workspace = true }

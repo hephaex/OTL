@@ -1,0 +1,89 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/otl-core",
+    "crates/otl-parser",
+    "crates/otl-ocr",
+    "crates/otl-graph",
+    "crates/otl-vector",
+    "crates/otl-extractor",
+    "crates/otl-rag",
+    "crates/otl-api",
+    "crates/otl-cli",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["hep@gmail.com"]
+license = "Apache-2.0"
+repository = "https://github.com/hephaex/OTL"
+readme = "README.md"
+keywords = ["ontology", "knowledge-graph", "rag", "llm"]
+categories = ["database", "text-processing"]
+
+[workspace.dependencies]
+# Async runtime
+tokio = { version = "1.40", features = ["full"] }
+
+# Web framework
+axum = { version = "0.7", features = ["macros"] }
+tower = "0.5"
+tower-http = { version = "0.5", features = ["cors", "trace"] }
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Database clients
+surrealdb = "2.0"
+qdrant-client = "1.10"
+sqlx = { version = "0.8", features = ["runtime-tokio", "postgres", "uuid", "chrono"] }
+
+# Document parsing
+pdf-extract = "0.7"
+calamine = "0.26"
+
+# Graph processing
+petgraph = "0.6"
+
+# Vector operations
+ndarray = "0.16"
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+# Logging and tracing
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# HTTP client (for LLM API)
+reqwest = { version = "0.12", features = ["json", "stream"] }
+
+# Async utilities
+futures = "0.3"
+async-trait = "0.1"
+
+# CLI
+clap = { version = "4.5", features = ["derive"] }
+
+# UUID
+uuid = { version = "1.10", features = ["v4", "serde"] }
+
+# Time
+chrono = { version = "0.4", features = ["serde"] }
+
+# Testing
+proptest = "1.4"
+tokio-test = "0.4"
+
+# OpenAPI documentation
+utoipa = { version = "4.2", features = ["axum_extras"] }
+utoipa-swagger-ui = { version = "7.1", features = ["axum"] }
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
