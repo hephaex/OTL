@@ -1,0 +1,633 @@
+{
+  "version": "1.0.0",
+  "domain": "hr_policy",
+  "description": "OTL 프로젝트 QA 평가셋 - 인사 규정 도메인",
+  "created_at": "2024-01-01",
+  "total_questions": 50,
+  "categories": {
+    "procedural": 15,
+    "factual": 15,
+    "comparative": 10,
+    "conditional": 10
+  },
+  "questions": [
+    {
+      "id": "qa-001",
+      "category": "procedural",
+      "question": "연차 휴가 신청 절차는?",
+      "question_en": "What is the vacation request procedure?",
+      "expected_answer": "1. 휴가신청서 작성 2. 팀장에게 사전 승인 요청 3. 인사팀 시스템 등록 4. 최종 승인 확인",
+      "expected_sources": [
+        {"document": "HR_Policy_2024.pdf", "page": 15, "section": "3.2 연차휴가"}
+      ],
+      "keywords": ["연차", "휴가", "신청", "절차"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "qa-002",
+      "category": "procedural",
+      "question": "병가 신청은 어떻게 하나요?",
+      "question_en": "How do I apply for sick leave?",
+      "expected_answer": "병가는 사후 신청이 가능하며, 3일 이상 시 진단서 제출 필요. 팀장에게 유선 보고 후 복귀 시 신청서 제출.",
+      "expected_sources": [
+        {"document": "HR_Policy_2024.pdf", "page": 16, "section": "3.3 병가"}
+      ],
+      "keywords": ["병가", "신청", "진단서"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "qa-003",
+      "category": "procedural",
+      "question": "경비 청구 절차는?",
+      "question_en": "What is the expense reimbursement procedure?",
+      "expected_answer": "1. 경비청구서 작성 2. 영수증 첨부 3. 팀장 승인 4. 재무팀 검토 5. 익월 급여에 포함하여 지급",
+      "expected_sources": [
+        {"document": "Expense_Policy.docx", "page": 3, "section": "2.1 청구 절차"}
+      ],
+      "keywords": ["경비", "청구", "영수증"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "qa-004",
+      "category": "procedural",
+      "question": "출장 신청 방법은?",
+      "question_en": "How to apply for a business trip?",
+      "expected_answer": "출장 7일 전 출장신청서 제출, 팀장 및 본부장 승인 후 출장 가능. 해외 출장은 2주 전 신청.",
+      "expected_sources": [
+        {"document": "HR_Policy_2024.pdf", "page": 22, "section": "4.1 출장"}
+      ],
+      "keywords": ["출장", "신청", "승인"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "qa-005",
+      "category": "procedural",
+      "question": "재택근무 신청 절차는?",
+      "question_en": "What is the remote work application procedure?",
+      "expected_answer": "재택근무 신청서를 팀장에게 제출하고 승인 후 인사팀에 통보. 주 2일까지 가능.",
+      "expected_sources": [
+        {"document": "HR_Policy_2024.pdf", "page": 25, "section": "5.2 재택근무"}
+      ],
+      "keywords": ["재택근무", "신청", "승인"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "qa-006",
+      "category": "procedural",
+      "question": "퇴직 절차는 어떻게 되나요?",
+      "question_en": "What is the resignation procedure?",
+      "expected_answer": "퇴직 30일 전 사직서 제출, 팀장 및 인사팀 면담, 업무 인수인계 완료 후 퇴직 처리.",
+      "expected_sources": [
+        {"document": "HR_Policy_2024.pdf", "page": 35, "section": "8.1 퇴직"}
+      ],
+      "keywords": ["퇴직", "사직서", "인수인계"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "qa-007",
+      "category": "procedural",
+      "question": "법인카드 발급 절차는?",
+      "question_en": "How to get a corporate card?",
+      "expected_answer": "법인카드 신청서를 재무팀에 제출, 팀장 승인 후 1주일 내 발급.",
+      "expected_sources": [
+        {"document": "Expense_Policy.docx", "page": 5, "section": "3.1 법인카드"}
+      ],
+      "keywords": ["법인카드", "발급", "신청"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "qa-008",
+      "category": "procedural",
+      "question": "부서 이동 신청은 어떻게 하나요?",
+      "question_en": "How to request a department transfer?",
+      "expected_answer": "인사이동 신청서 작성 후 현 팀장과 이동 희망 부서 팀장 승인 필요. 인사팀 심사 후 결정.",
+      "expected_sources": [
+        {"document": "HR_Policy_2024.pdf", "page": 30, "section": "6.2 부서 이동"}
+      ],
+      "keywords": ["부서", "이동", "신청"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "qa-009",
+      "category": "procedural",
+      "question": "교육 신청 절차는?",
+      "question_en": "How to apply for training programs?",
+      "expected_answer": "교육신청서 작성, 팀장 승인, 인사팀 교육 일정 확인 후 등록 완료.",
+      "expected_sources": [
+        {"document": "Training_HR_Basics.pptx", "slide": 10}
+      ],
+      "keywords": ["교육", "신청", "등록"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "qa-010",
+      "category": "procedural",
+      "question": "휴가 취소는 어떻게 하나요?",
+      "question_en": "How to cancel approved leave?",
+      "expected_answer": "휴가 시작 3일 전까지 휴가취소 신청서 제출, 팀장 승인 후 취소 처리.",
+      "expected_sources": [
+        {"document": "HR_Policy_2024.pdf", "page": 17, "section": "3.2.4 휴가 취소"}
+      ],
+      "keywords": ["휴가", "취소", "신청"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "qa-011",
+      "category": "procedural",
+      "question": "육아휴직 신청 방법은?",
+      "question_en": "How to apply for parental leave?",
+      "expected_answer": "육아휴직 신청서와 출생증명서 제출, 휴직 시작 30일 전 인사팀에 신청. 최대 1년 사용 가능.",
+      "expected_sources": [
+        {"document": "HR_Policy_2024.pdf", "page": 20, "section": "3.6 육아휴직"}
+      ],
+      "keywords": ["육아휴직", "신청", "출생증명서"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "qa-012",
+      "category": "procedural",
+      "question": "초과근무 신청은 어떻게 하나요?",
+      "question_en": "How to apply for overtime?",
+      "expected_answer": "초과근무 전 팀장에게 사전 승인 요청, 익일까지 초과근무 신청서 제출.",
+      "expected_sources": [
+        {"document": "HR_Policy_2024.pdf", "page": 12, "section": "2.3 초과근무"}
+      ],
+      "keywords": ["초과근무", "신청", "승인"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "qa-013",
+      "category": "procedural",
+      "question": "휴직 신청 절차는?",
+      "question_en": "What is the leave of absence procedure?",
+      "expected_answer": "휴직 신청서 제출, 팀장 및 인사담당임원 승인 필요. 휴직 시작 30일 전 신청.",
+      "expected_sources": [
+        {"document": "HR_Policy_2024.pdf", "page": 21, "section": "3.7 휴직"}
+      ],
+      "keywords": ["휴직", "신청", "승인"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "qa-014",
+      "category": "procedural",
+      "question": "증명서 발급 방법은?",
+      "question_en": "How to get employment certificates?",
+      "expected_answer": "인사팀에 증명서 발급 신청서 제출, 3일 내 발급. 재직증명서, 경력증명서 등 가능.",
+      "expected_sources": [
+        {"document": "HR_Policy_2024.pdf", "page": 38, "section": "9.2 증명서 발급"}
+      ],
+      "keywords": ["증명서", "발급", "신청"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "qa-015",
+      "category": "procedural",
+      "question": "긴급 결재 처리 방법은?",
+      "question_en": "How to handle urgent approvals?",
+      "expected_answer": "긴급 결재 사유서 작성, 직상위 결재권자에게 유선 보고 후 사후 결재 진행.",
+      "expected_sources": [
+        {"document": "Approval_Workflow.md", "section": "긴급 결재"}
+      ],
+      "keywords": ["긴급", "결재", "승인"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "qa-016",
+      "category": "factual",
+      "question": "연차휴가는 며칠인가?",
+      "question_en": "How many annual leave days are provided?",
+      "expected_answer": "1년 이상 근속 시 연간 15일. 3년차부터 2년마다 1일 추가, 최대 25일.",
+      "expected_sources": [
+        {"document": "HR_Policy_2024.pdf", "page": 15, "section": "3.2.1 연차 발생"}
+      ],
+      "keywords": ["연차", "일수", "휴가"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "qa-017",
+      "category": "factual",
+      "question": "경조휴가 일수는?",
+      "question_en": "How many days for congratulatory/condolence leave?",
+      "expected_answer": "본인 결혼 5일, 자녀 결혼 2일, 부모 사망 5일, 배우자 부모 사망 3일, 형제자매 사망 3일.",
+      "expected_sources": [
+        {"document": "HR_Policy_2024.pdf", "page": 18, "section": "3.4 경조휴가"}
+      ],
+      "keywords": ["경조휴가", "일수", "결혼", "사망"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "qa-018",
+      "category": "factual",
+      "question": "유급 병가는 며칠인가?",
+      "question_en": "How many paid sick leave days?",
+      "expected_answer": "연간 유급 병가 10일. 초과 시 무급 또는 연차 차감.",
+      "expected_sources": [
+        {"document": "HR_Policy_2024.pdf", "page": 16, "section": "3.3 병가"}
+      ],
+      "keywords": ["병가", "유급", "일수"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "qa-019",
+      "category": "factual",
+      "question": "육아휴직 기간은 얼마인가?",
+      "question_en": "How long is parental leave?",
+      "expected_answer": "자녀 1인당 최대 1년. 분할 사용 가능, 최소 단위 30일.",
+      "expected_sources": [
+        {"document": "HR_Policy_2024.pdf", "page": 20, "section": "3.6 육아휴직"}
+      ],
+      "keywords": ["육아휴직", "기간", "최대"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "qa-020",
+      "category": "factual",
+      "question": "시용 기간은 얼마인가?",
+      "question_en": "How long is the probation period?",
+      "expected_answer": "3개월. 필요 시 1개월 연장 가능.",
+      "expected_sources": [
+        {"document": "Onboarding_Guide.docx", "section": "1.2 시용 기간"}
+      ],
+      "keywords": ["시용기간", "수습", "기간"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "qa-021",
+      "category": "factual",
+      "question": "정규 근무시간은?",
+      "question_en": "What are the regular working hours?",
+      "expected_answer": "오전 9시~오후 6시 (휴게시간 1시간 포함), 주 40시간.",
+      "expected_sources": [
+        {"document": "HR_Policy_2024.pdf", "page": 10, "section": "2.1 근무시간"}
+      ],
+      "keywords": ["근무시간", "정규", "시간"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "qa-022",
+      "category": "factual",
+      "question": "출장비 일비는 얼마인가?",
+      "question_en": "What is the daily travel allowance?",
+      "expected_answer": "국내 출장 일비 30,000원, 해외 출장은 지역별 상이 (미국 $100/일 등).",
+      "expected_sources": [
+        {"document": "Expense_Policy.docx", "page": 8, "section": "4.2 출장비"}
+      ],
+      "keywords": ["출장비", "일비", "금액"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "qa-023",
+      "category": "factual",
+      "question": "법인카드 월 한도는?",
+      "question_en": "What is the corporate card monthly limit?",
+      "expected_answer": "일반 직원 100만원, 팀장 300만원, 임원 500만원.",
+      "expected_sources": [
+        {"document": "Expense_Policy.docx", "page": 6, "section": "3.2 사용 한도"}
+      ],
+      "keywords": ["법인카드", "한도", "금액"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "qa-024",
+      "category": "factual",
+      "question": "교육비 지원 한도는?",
+      "question_en": "What is the training expense limit?",
+      "expected_answer": "연간 인당 200만원까지 지원. 업무 관련 외부 교육에 한함.",
+      "expected_sources": [
+        {"document": "Training_HR_Basics.pptx", "slide": 15}
+      ],
+      "keywords": ["교육비", "지원", "한도"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "qa-025",
+      "category": "factual",
+      "question": "퇴직금 지급 기준은?",
+      "question_en": "What is the severance pay standard?",
+      "expected_answer": "1년 이상 근속 시 1년당 30일분 평균임금. 퇴직 후 14일 이내 지급.",
+      "expected_sources": [
+        {"document": "HR_Policy_2024.pdf", "page": 36, "section": "8.3 퇴직금"}
+      ],
+      "keywords": ["퇴직금", "기준", "지급"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "qa-026",
+      "category": "factual",
+      "question": "연차수당 계산 방법은?",
+      "question_en": "How is unused leave compensated?",
+      "expected_answer": "미사용 연차 × (통상임금 ÷ 209시간 × 8시간). 연말 정산 또는 퇴직 시 지급.",
+      "expected_sources": [
+        {"document": "HR_Policy_2024.pdf", "page": 17, "section": "3.2.5 연차수당"}
+      ],
+      "keywords": ["연차수당", "계산", "미사용"],
+      "difficulty": "hard"
+    },
+    {
+      "id": "qa-027",
+      "category": "factual",
+      "question": "야근 수당 기준은?",
+      "question_en": "What is the overtime pay rate?",
+      "expected_answer": "평일 야근 통상임금의 150%, 휴일 근무 200%.",
+      "expected_sources": [
+        {"document": "HR_Policy_2024.pdf", "page": 13, "section": "2.4 수당"}
+      ],
+      "keywords": ["야근", "수당", "기준"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "qa-028",
+      "category": "factual",
+      "question": "건강검진 주기는?",
+      "question_en": "How often are health checkups provided?",
+      "expected_answer": "연 1회 종합건강검진 제공. 35세 이상 또는 희망자 정밀 검진 추가.",
+      "expected_sources": [
+        {"document": "HR_Policy_2024.pdf", "page": 40, "section": "10.1 건강검진"}
+      ],
+      "keywords": ["건강검진", "주기", "종합"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "qa-029",
+      "category": "factual",
+      "question": "인사 담당자 연락처는?",
+      "question_en": "What is the HR contact information?",
+      "expected_answer": "인사팀 대표번호 02-1234-5678, 이메일 hr@company.com",
+      "expected_sources": [
+        {"document": "Onboarding_Guide.docx", "section": "부록 연락처"}
+      ],
+      "keywords": ["인사팀", "연락처", "전화"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "qa-030",
+      "category": "factual",
+      "question": "급여일은 언제인가?",
+      "question_en": "When is the payday?",
+      "expected_answer": "매월 25일. 휴일인 경우 전 영업일 지급.",
+      "expected_sources": [
+        {"document": "HR_Policy_2024.pdf", "page": 8, "section": "1.5 급여"}
+      ],
+      "keywords": ["급여일", "지급일", "월급"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "qa-031",
+      "category": "comparative",
+      "question": "연차와 병가의 차이는?",
+      "question_en": "What is the difference between annual leave and sick leave?",
+      "expected_answer": "연차는 사전 승인 필요, 이유 불문. 병가는 사후 신청 가능, 3일 이상 시 진단서 필요. 연차는 15일, 병가는 유급 10일.",
+      "expected_sources": [
+        {"document": "HR_Policy_2024.pdf", "page": 15, "section": "3.2"},
+        {"document": "HR_Policy_2024.pdf", "page": 16, "section": "3.3"}
+      ],
+      "keywords": ["연차", "병가", "차이"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "qa-032",
+      "category": "comparative",
+      "question": "국내 출장과 해외 출장의 차이는?",
+      "question_en": "What is the difference between domestic and overseas business trips?",
+      "expected_answer": "국내 출장은 7일 전 신청, 일비 3만원. 해외 출장은 2주 전 신청, 지역별 일비 적용 ($50-150).",
+      "expected_sources": [
+        {"document": "Expense_Policy.docx", "page": 8, "section": "4.2 출장비"}
+      ],
+      "keywords": ["국내출장", "해외출장", "차이"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "qa-033",
+      "category": "comparative",
+      "question": "정규직과 계약직의 휴가 차이는?",
+      "question_en": "What is the leave difference between permanent and contract employees?",
+      "expected_answer": "정규직은 연차 15일+경조휴가. 계약직은 근로계약서에 따르나 최소 법정 연차(11일) 보장.",
+      "expected_sources": [
+        {"document": "HR_Policy_2024.pdf", "page": 15, "section": "3.2"},
+        {"document": "HR_Policy_2024.pdf", "page": 5, "section": "1.2 고용형태"}
+      ],
+      "keywords": ["정규직", "계약직", "휴가", "차이"],
+      "difficulty": "hard"
+    },
+    {
+      "id": "qa-034",
+      "category": "comparative",
+      "question": "시용기간과 정규 채용의 차이는?",
+      "question_en": "What is the difference between probation and permanent employment?",
+      "expected_answer": "시용기간 3개월간 평가 후 정규 채용 전환. 시용기간 중 연차는 발생하나 사용 제한.",
+      "expected_sources": [
+        {"document": "Onboarding_Guide.docx", "section": "1.2 시용 기간"}
+      ],
+      "keywords": ["시용기간", "정규채용", "차이"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "qa-035",
+      "category": "comparative",
+      "question": "반차와 연차의 차이는?",
+      "question_en": "What is the difference between half-day and full-day leave?",
+      "expected_answer": "반차는 오전/오후 4시간 단위, 연차 0.5일 차감. 연차는 하루 전체 사용, 1일 차감.",
+      "expected_sources": [
+        {"document": "HR_Policy_2024.pdf", "page": 16, "section": "3.2.2 반차"}
+      ],
+      "keywords": ["반차", "연차", "차이"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "qa-036",
+      "category": "comparative",
+      "question": "재택근무와 출장의 차이는?",
+      "question_en": "What is the difference between remote work and business trip?",
+      "expected_answer": "재택근무는 자택에서 정규 업무, 추가 수당 없음. 출장은 외부 목적지 방문, 출장비 및 일비 지급.",
+      "expected_sources": [
+        {"document": "HR_Policy_2024.pdf", "page": 22, "section": "4.1 출장"},
+        {"document": "HR_Policy_2024.pdf", "page": 25, "section": "5.2 재택근무"}
+      ],
+      "keywords": ["재택근무", "출장", "차이"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "qa-037",
+      "category": "comparative",
+      "question": "승진과 직급 변경의 차이는?",
+      "question_en": "What is the difference between promotion and grade change?",
+      "expected_answer": "승진은 상위 직급으로 이동, 임금 상승 포함. 직급 변경은 동일 직급 내 직무 변경.",
+      "expected_sources": [
+        {"document": "HR_Policy_2024.pdf", "page": 28, "section": "6.1 승진"}
+      ],
+      "keywords": ["승진", "직급", "변경", "차이"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "qa-038",
+      "category": "comparative",
+      "question": "휴직과 퇴직의 차이는?",
+      "question_en": "What is the difference between leave of absence and resignation?",
+      "expected_answer": "휴직은 고용 유지 상태에서 일정 기간 근무 중단, 복직 가능. 퇴직은 고용관계 종료.",
+      "expected_sources": [
+        {"document": "HR_Policy_2024.pdf", "page": 21, "section": "3.7 휴직"},
+        {"document": "HR_Policy_2024.pdf", "page": 35, "section": "8.1 퇴직"}
+      ],
+      "keywords": ["휴직", "퇴직", "차이"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "qa-039",
+      "category": "comparative",
+      "question": "팀장 결재와 본부장 결재의 차이는?",
+      "question_en": "What is the difference between team leader and department head approval?",
+      "expected_answer": "팀장 결재는 100만원 미만, 본부장 결재는 100만원 이상 또는 규정에 따른 중요 사항.",
+      "expected_sources": [
+        {"document": "Approval_Workflow.md", "section": "결재 권한"}
+      ],
+      "keywords": ["팀장", "본부장", "결재", "차이"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "qa-040",
+      "category": "comparative",
+      "question": "법인카드와 개인 경비 청구의 차이는?",
+      "question_en": "What is the difference between corporate card and personal expense claims?",
+      "expected_answer": "법인카드는 회사 직접 결제, 사후 영수증 제출. 개인 경비는 본인 선지급 후 청구서로 환급.",
+      "expected_sources": [
+        {"document": "Expense_Policy.docx", "page": 3, "section": "2.1 청구 절차"},
+        {"document": "Expense_Policy.docx", "page": 5, "section": "3.1 법인카드"}
+      ],
+      "keywords": ["법인카드", "경비청구", "차이"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "qa-041",
+      "category": "conditional",
+      "question": "입사 1년 미만이면 연차가 몇 일인가?",
+      "question_en": "How many leave days for employees under 1 year?",
+      "expected_answer": "입사 후 매월 1일씩 발생하여 최대 11일까지 사용 가능. 1년 근속 시 잔여 연차 소멸, 15일 신규 부여.",
+      "expected_sources": [
+        {"document": "HR_Policy_2024.pdf", "page": 15, "section": "3.2.1 연차 발생"}
+      ],
+      "keywords": ["1년미만", "연차", "발생"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "qa-042",
+      "category": "conditional",
+      "question": "병가가 10일을 초과하면?",
+      "question_en": "What happens if sick leave exceeds 10 days?",
+      "expected_answer": "유급 병가 10일 초과 시 무급 처리 또는 연차 사용으로 대체 가능. 장기 시 휴직 전환 검토.",
+      "expected_sources": [
+        {"document": "HR_Policy_2024.pdf", "page": 16, "section": "3.3 병가"}
+      ],
+      "keywords": ["병가", "초과", "무급"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "qa-043",
+      "category": "conditional",
+      "question": "예산이 초과되면 결재는?",
+      "question_en": "What is the approval process when exceeding budget?",
+      "expected_answer": "예산 초과 시 예산초과 사유서 작성, 본부장 승인 후 재무팀 검토. 10% 초과 시 대표이사 승인 필요.",
+      "expected_sources": [
+        {"document": "Expense_Policy.docx", "page": 10, "section": "5.1 예산 초과"}
+      ],
+      "keywords": ["예산", "초과", "결재"],
+      "difficulty": "hard"
+    },
+    {
+      "id": "qa-044",
+      "category": "conditional",
+      "question": "시용기간 중 퇴사하면?",
+      "question_en": "What if resigning during probation?",
+      "expected_answer": "시용기간 중 퇴사 시 7일 전 사직 통보. 퇴직금은 미지급 (1년 미만).",
+      "expected_sources": [
+        {"document": "Onboarding_Guide.docx", "section": "1.2 시용 기간"}
+      ],
+      "keywords": ["시용기간", "퇴사", "조건"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "qa-045",
+      "category": "conditional",
+      "question": "휴가 중 긴급 업무 발생 시?",
+      "question_en": "What if urgent work arises during leave?",
+      "expected_answer": "팀장 요청 시 휴가 중단 가능, 사용 일수에서 제외. 대체 휴가 또는 수당으로 보상.",
+      "expected_sources": [
+        {"document": "HR_Policy_2024.pdf", "page": 17, "section": "3.2.4 휴가 취소"}
+      ],
+      "keywords": ["휴가", "긴급", "업무"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "qa-046",
+      "category": "conditional",
+      "question": "해외 출장 중 사고 발생 시?",
+      "question_en": "What if an accident occurs during overseas trip?",
+      "expected_answer": "즉시 인사팀에 보고, 해외여행자보험 적용. 치료비는 보험 범위 내 회사 부담.",
+      "expected_sources": [
+        {"document": "HR_Policy_2024.pdf", "page": 24, "section": "4.3 출장 중 사고"}
+      ],
+      "keywords": ["해외출장", "사고", "보험"],
+      "difficulty": "hard"
+    },
+    {
+      "id": "qa-047",
+      "category": "conditional",
+      "question": "경조휴가 대상이 아니면?",
+      "question_en": "What if not eligible for congratulatory leave?",
+      "expected_answer": "경조휴가 대상 외 가족 경조사는 연차 사용 또는 무급 휴가로 처리.",
+      "expected_sources": [
+        {"document": "HR_Policy_2024.pdf", "page": 18, "section": "3.4 경조휴가"}
+      ],
+      "keywords": ["경조휴가", "대상", "조건"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "qa-048",
+      "category": "conditional",
+      "question": "연차가 부족하면?",
+      "question_en": "What if annual leave is insufficient?",
+      "expected_answer": "연차 부족 시 무급 휴가 신청 가능. 팀장 및 인사팀 승인 필요.",
+      "expected_sources": [
+        {"document": "HR_Policy_2024.pdf", "page": 17, "section": "3.2.3 연차 부족"}
+      ],
+      "keywords": ["연차", "부족", "무급"],
+      "difficulty": "easy"
+    },
+    {
+      "id": "qa-049",
+      "category": "conditional",
+      "question": "재택근무 연장이 필요하면?",
+      "question_en": "What if remote work extension is needed?",
+      "expected_answer": "연장 신청서 제출, 팀장 승인 필요. 연속 1개월 초과 시 인사팀장 추가 승인.",
+      "expected_sources": [
+        {"document": "HR_Policy_2024.pdf", "page": 25, "section": "5.2 재택근무"}
+      ],
+      "keywords": ["재택근무", "연장", "승인"],
+      "difficulty": "medium"
+    },
+    {
+      "id": "qa-050",
+      "category": "conditional",
+      "question": "교육비가 한도를 초과하면?",
+      "question_en": "What if training expense exceeds the limit?",
+      "expected_answer": "한도 초과분은 본인 부담 또는 팀 예산에서 지원 가능. 본부장 승인 필요.",
+      "expected_sources": [
+        {"document": "Training_HR_Basics.pptx", "slide": 15}
+      ],
+      "keywords": ["교육비", "한도", "초과"],
+      "difficulty": "medium"
+    }
+  ],
+  "evaluation_metrics": {
+    "precision_at_k": {
+      "k_values": [1, 3, 5],
+      "target": 0.85
+    },
+    "hallucination_rate": {
+      "target_max": 0.05,
+      "measurement": "Percentage of claims without source reference"
+    },
+    "response_time": {
+      "target_p95_ms": 3000
+    }
+  }
+}

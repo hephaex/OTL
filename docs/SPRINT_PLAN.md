@@ -1,8 +1,8 @@
 # OTL Sprint Plan
 
-> **Author**: hep@gmail.com  
+> **Author**: hephaex@gmail.com  
 > **License**: Apache-2.0  
-> © 2024 hep@gmail.com. All rights reserved.
+> © 2024 hephaex@gmail.com. All rights reserved.
 
 ## 스프린트 실행 계획서
 

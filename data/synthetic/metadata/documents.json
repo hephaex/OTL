@@ -1,0 +1,249 @@
+{
+  "version": "1.0.0",
+  "description": "Synthetic HR documents metadata with ACL settings for OTL testing",
+  "documents": [
+    {
+      "id": "doc-001",
+      "title": "HR Policy 2024",
+      "title_ko": "인사규정 2024",
+      "filename": "HR_Policy_2024.pdf",
+      "file_type": "pdf",
+      "pages": 45,
+      "language": "ko",
+      "description": "Comprehensive HR policy manual covering leave, expenses, and procedures",
+      "sections": [
+        {"number": "1", "title": "총칙", "start_page": 1},
+        {"number": "2", "title": "근무", "start_page": 8},
+        {"number": "3", "title": "휴가", "start_page": 14},
+        {"number": "4", "title": "출장", "start_page": 22},
+        {"number": "5", "title": "근태", "start_page": 25},
+        {"number": "6", "title": "인사이동", "start_page": 28},
+        {"number": "7", "title": "평가", "start_page": 32},
+        {"number": "8", "title": "퇴직", "start_page": 35},
+        {"number": "9", "title": "부칙", "start_page": 38}
+      ],
+      "acl": {
+        "access_level": "internal",
+        "department": null,
+        "required_roles": [],
+        "allowed_users": []
+      },
+      "entities": ["Regulation", "LeaveType", "ApprovalProcess"],
+      "created_at": "2024-01-01",
+      "updated_at": "2024-06-15"
+    },
+    {
+      "id": "doc-002",
+      "title": "Vacation Request Form",
+      "title_ko": "휴가신청서",
+      "filename": "Vacation_Request_Form.xlsx",
+      "file_type": "xlsx",
+      "sheets": ["신청서", "연차현황", "승인이력"],
+      "language": "ko",
+      "description": "Excel form for vacation requests with leave balance tracker",
+      "acl": {
+        "access_level": "internal",
+        "department": null,
+        "required_roles": [],
+        "allowed_users": []
+      },
+      "entities": ["Form", "LeaveBalance"],
+      "created_at": "2024-01-15"
+    },
+    {
+      "id": "doc-003",
+      "title": "Expense Policy",
+      "title_ko": "경비처리규정",
+      "filename": "Expense_Policy.docx",
+      "file_type": "docx",
+      "pages": 15,
+      "language": "ko",
+      "description": "Guidelines for expense claims, corporate cards, and travel",
+      "acl": {
+        "access_level": "internal",
+        "department": null,
+        "required_roles": [],
+        "allowed_users": []
+      },
+      "entities": ["Regulation", "ExpenseType", "ApprovalProcess"],
+      "created_at": "2024-02-01"
+    },
+    {
+      "id": "doc-004",
+      "title": "Onboarding Guide",
+      "title_ko": "신입사원 가이드",
+      "filename": "Onboarding_Guide.docx",
+      "file_type": "docx",
+      "pages": 20,
+      "language": "ko",
+      "description": "Guide for new employees covering company policies and procedures",
+      "acl": {
+        "access_level": "internal",
+        "department": null,
+        "required_roles": [],
+        "allowed_users": []
+      },
+      "entities": ["Document", "Department", "Position"],
+      "created_at": "2024-01-10"
+    },
+    {
+      "id": "doc-005",
+      "title": "HR Training Basics",
+      "title_ko": "HR 기초 교육",
+      "filename": "Training_HR_Basics.pptx",
+      "file_type": "pptx",
+      "slides": 25,
+      "language": "ko",
+      "description": "Training presentation on HR policies and benefits",
+      "acl": {
+        "access_level": "internal",
+        "department": null,
+        "required_roles": [],
+        "allowed_users": []
+      },
+      "entities": ["Document", "LeaveType"],
+      "created_at": "2024-03-01"
+    },
+    {
+      "id": "doc-006",
+      "title": "Leave Policy Summary",
+      "title_ko": "휴가정책 요약",
+      "filename": "Leave_Policy_Summary.md",
+      "file_type": "markdown",
+      "language": "ko",
+      "description": "Quick reference guide for leave policies",
+      "acl": {
+        "access_level": "public",
+        "department": null,
+        "required_roles": [],
+        "allowed_users": []
+      },
+      "entities": ["LeaveType"],
+      "created_at": "2024-04-01"
+    },
+    {
+      "id": "doc-007",
+      "title": "Approval Workflow Guide",
+      "title_ko": "결재 워크플로우",
+      "filename": "Approval_Workflow.md",
+      "file_type": "markdown",
+      "language": "ko",
+      "description": "Documentation of approval processes and authorization levels",
+      "acl": {
+        "access_level": "internal",
+        "department": null,
+        "required_roles": [],
+        "allowed_users": []
+      },
+      "entities": ["ApprovalProcess", "ApprovalStep"],
+      "created_at": "2024-02-15"
+    },
+    {
+      "id": "doc-008",
+      "title": "Department Structure",
+      "title_ko": "조직도",
+      "filename": "Department_Structure.xlsx",
+      "file_type": "xlsx",
+      "sheets": ["조직도", "부서코드", "담당자"],
+      "language": "ko",
+      "description": "Organization chart and department hierarchy",
+      "acl": {
+        "access_level": "internal",
+        "department": null,
+        "required_roles": [],
+        "allowed_users": []
+      },
+      "entities": ["Department", "Position", "Employee"],
+      "created_at": "2024-01-05"
+    },
+    {
+      "id": "doc-009",
+      "title": "Salary Information 2024",
+      "title_ko": "급여정보 2024",
+      "filename": "Confidential_Salary.xlsx",
+      "file_type": "xlsx",
+      "sheets": ["급여테이블", "수당기준", "직급별"],
+      "language": "ko",
+      "description": "Confidential salary bands and compensation data",
+      "acl": {
+        "access_level": "restricted",
+        "department": "HR",
+        "required_roles": ["hr_admin", "finance_admin"],
+        "allowed_users": ["ceo", "cfo", "hr_director"]
+      },
+      "entities": ["Grade", "Position"],
+      "created_at": "2024-01-01",
+      "sensitivity": "high"
+    },
+    {
+      "id": "doc-010",
+      "title": "Performance Review Guidelines",
+      "title_ko": "성과평가 가이드라인",
+      "filename": "Performance_Review.docx",
+      "file_type": "docx",
+      "pages": 12,
+      "language": "ko",
+      "description": "Guidelines for annual performance reviews - managers only",
+      "acl": {
+        "access_level": "confidential",
+        "department": null,
+        "required_roles": ["manager", "hr_staff"],
+        "allowed_users": []
+      },
+      "entities": ["Regulation", "ApprovalProcess"],
+      "created_at": "2024-05-01"
+    },
+    {
+      "id": "doc-011",
+      "title": "Old Policy Document (Scanned)",
+      "title_ko": "구 인사규정 (스캔본)",
+      "filename": "Old_Policy_Scan.pdf",
+      "file_type": "pdf",
+      "pages": 30,
+      "language": "ko",
+      "description": "Scanned version of 2020 HR policy for reference - OCR required",
+      "ocr_required": true,
+      "acl": {
+        "access_level": "internal",
+        "department": "HR",
+        "required_roles": [],
+        "allowed_users": []
+      },
+      "entities": ["Regulation"],
+      "created_at": "2020-01-01",
+      "is_archived": true
+    }
+  ],
+  "access_level_definitions": {
+    "public": "Anyone can access, including external users",
+    "internal": "All organization members can access",
+    "confidential": "Only specific departments or roles can access",
+    "restricted": "Only named individuals can access"
+  },
+  "test_scenarios": [
+    {
+      "name": "Public access test",
+      "user": {"id": "guest", "roles": [], "is_internal": false},
+      "expected_visible": ["doc-006"],
+      "expected_hidden": ["doc-001", "doc-009"]
+    },
+    {
+      "name": "Regular employee test",
+      "user": {"id": "emp001", "roles": ["employee"], "is_internal": true},
+      "expected_visible": ["doc-001", "doc-002", "doc-006"],
+      "expected_hidden": ["doc-009", "doc-010"]
+    },
+    {
+      "name": "Manager test",
+      "user": {"id": "mgr001", "roles": ["employee", "manager"], "is_internal": true},
+      "expected_visible": ["doc-001", "doc-002", "doc-010"],
+      "expected_hidden": ["doc-009"]
+    },
+    {
+      "name": "HR Admin test",
+      "user": {"id": "hr001", "roles": ["employee", "hr_admin"], "is_internal": true},
+      "expected_visible": ["doc-001", "doc-009", "doc-010"],
+      "expected_hidden": []
+    }
+  ]
+}

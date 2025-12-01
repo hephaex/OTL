@@ -9,7 +9,7 @@
 | 항목 | 값 |
 |:-----|:---|
 | 리뷰일 | YYYY-MM-DD |
-| 리뷰어 | hep@gmail.com |
+| 리뷰어 | hephaex@gmail.com |
 | 담당 에이전트 | Reviewer |
 | Sprint | X |
 | Phase | Y |
@@ -197,4 +197,4 @@
 
 ---
 
-*Reviewer: hep@gmail.com*
+*Reviewer: hephaex@gmail.com*

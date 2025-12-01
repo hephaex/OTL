@@ -120,7 +120,7 @@ docs(readme): update installation instructions
 
 ```
 ✅ DO:
-- Use "Author: hep@gmail.com" in all files
+- Use "Author: hephaex@gmail.com" in all files
 - Use "Designed by author" or "Implemented by author"
 - Reference issue numbers and PR numbers
 
