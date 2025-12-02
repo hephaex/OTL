@@ -21,7 +21,7 @@ impl SurrealDbStore {
     pub async fn new(config: &DatabaseConfig) -> Result<Self> {
         let client = Surreal::new::<Ws>(&config.surrealdb_url)
             .await
-            .map_err(|e| OtlError::DatabaseError(format!("SurrealDB connection failed: {}", e)))?;
+            .map_err(|e| OtlError::DatabaseError(format!("SurrealDB connection failed: {e}")))?;
 
         // Authenticate
         client
@@ -30,14 +30,14 @@ impl SurrealDbStore {
                 password: &config.surrealdb_pass,
             })
             .await
-            .map_err(|e| OtlError::DatabaseError(format!("SurrealDB auth failed: {}", e)))?;
+            .map_err(|e| OtlError::DatabaseError(format!("SurrealDB auth failed: {e}")))?;
 
         // Select namespace and database
         client
             .use_ns(&config.surrealdb_namespace)
             .use_db(&config.surrealdb_database)
             .await
-            .map_err(|e| OtlError::DatabaseError(format!("SurrealDB namespace error: {}", e)))?;
+            .map_err(|e| OtlError::DatabaseError(format!("SurrealDB namespace error: {e}")))?;
 
         Ok(Self { client })
     }
@@ -58,7 +58,7 @@ impl SurrealDbStore {
             "#,
             )
             .await
-            .map_err(|e| OtlError::DatabaseError(format!("Schema init failed: {}", e)))?;
+            .map_err(|e| OtlError::DatabaseError(format!("Schema init failed: {e}")))?;
 
         Ok(())
     }
@@ -112,7 +112,7 @@ impl super::GraphStore for SurrealDbStore {
             .create(("entity", entity.id.to_string()))
             .content(record)
             .await
-            .map_err(|e| OtlError::DatabaseError(format!("Failed to store entity: {}", e)))?;
+            .map_err(|e| OtlError::DatabaseError(format!("Failed to store entity: {e}")))?;
 
         Ok(())
     }
@@ -131,7 +131,7 @@ impl super::GraphStore for SurrealDbStore {
             .bind(("predicate", predicate))
             .bind(("confidence", confidence))
             .await
-            .map_err(|e| OtlError::DatabaseError(format!("Failed to store triple: {}", e)))?;
+            .map_err(|e| OtlError::DatabaseError(format!("Failed to store triple: {e}")))?;
 
         Ok(())
     }
@@ -141,13 +141,15 @@ impl super::GraphStore for SurrealDbStore {
             .client
             .select(("entity", id.to_string()))
             .await
-            .map_err(|e| OtlError::DatabaseError(format!("Failed to get entity: {}", e)))?;
+            .map_err(|e| OtlError::DatabaseError(format!("Failed to get entity: {e}")))?;
 
         Ok(record.map(|r| Entity {
             id,
             class: r.class,
             properties: serde_json::from_value(r.properties).unwrap_or_default(),
-            source: SourceReference::new(Uuid::parse_str(&r.source.document_id).unwrap_or_default()),
+            source: SourceReference::new(
+                Uuid::parse_str(&r.source.document_id).unwrap_or_default(),
+            ),
             created_at: r.created_at.unwrap_or_default(),
             updated_at: r.updated_at.unwrap_or_default(),
         }))
@@ -161,21 +163,24 @@ impl super::GraphStore for SurrealDbStore {
             .bind(("class", class_owned))
             .bind(("limit", limit))
             .await
-            .map_err(|e| OtlError::DatabaseError(format!("Query failed: {}", e)))?
+            .map_err(|e| OtlError::DatabaseError(format!("Query failed: {e}")))?
             .take(0)
-            .map_err(|e| OtlError::DatabaseError(format!("Result extraction failed: {}", e)))?;
+            .map_err(|e| OtlError::DatabaseError(format!("Result extraction failed: {e}")))?;
 
         Ok(records
             .into_iter()
             .filter_map(|r| {
-                let id = r.id.as_ref()
-                    .and_then(|t| Uuid::parse_str(&t.id.to_string()).ok())
-                    .unwrap_or_default();
+                let id =
+                    r.id.as_ref()
+                        .and_then(|t| Uuid::parse_str(&t.id.to_string()).ok())
+                        .unwrap_or_default();
                 Some(Entity {
                     id,
                     class: r.class,
                     properties: serde_json::from_value(r.properties).unwrap_or_default(),
-                    source: SourceReference::new(Uuid::parse_str(&r.source.document_id).unwrap_or_default()),
+                    source: SourceReference::new(
+                        Uuid::parse_str(&r.source.document_id).unwrap_or_default(),
+                    ),
                     created_at: r.created_at.unwrap_or_default(),
                     updated_at: r.updated_at.unwrap_or_default(),
                 })
@@ -193,7 +198,7 @@ impl super::GraphStore for SurrealDbStore {
             .client
             .query(&query)
             .await
-            .map_err(|e| OtlError::DatabaseError(format!("Traverse failed: {}", e)))?;
+            .map_err(|e| OtlError::DatabaseError(format!("Traverse failed: {e}")))?;
 
         // Simplified: return empty for now, real implementation would parse graph results
         Ok(Vec::new())
@@ -204,7 +209,7 @@ impl super::GraphStore for SurrealDbStore {
             .client
             .query(query)
             .await
-            .map_err(|e| OtlError::DatabaseError(format!("Query failed: {}", e)))?;
+            .map_err(|e| OtlError::DatabaseError(format!("Query failed: {e}")))?;
 
         Ok(Vec::new())
     }

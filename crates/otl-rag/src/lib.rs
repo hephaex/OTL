@@ -9,8 +9,8 @@
 //! filtered based on Access Control Lists (ACL).
 
 use otl_core::{
-    Citation, LlmClient, RagQuery, RagResponse, Result, SearchBackend,
-    SearchResult, SearchResultType, User,
+    Citation, LlmClient, RagQuery, RagResponse, Result, SearchBackend, SearchResult,
+    SearchResultType, User,
 };
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -203,7 +203,8 @@ impl HybridRagOrchestrator {
 
         // 2. Execute searches in parallel
         let (vector_results, graph_results, keyword_results) = tokio::join!(
-            self.vector_store.search(&query.question, self.config.vector_top_k),
+            self.vector_store
+                .search(&query.question, self.config.vector_top_k),
             self.search_graph_context(&analysis),
             self.search_keywords(&analysis)
         );
@@ -298,7 +299,10 @@ impl HybridRagOrchestrator {
         };
 
         // Extract keywords (simple whitespace tokenization, filter stopwords)
-        let stopwords = ["은", "는", "이", "가", "를", "을", "의", "에", "와", "과", "the", "a", "is", "are", "what", "how"];
+        let stopwords = [
+            "은", "는", "이", "가", "를", "을", "의", "에", "와", "과", "the", "a", "is", "are",
+            "what", "how",
+        ];
         let keywords: Vec<String> = question
             .split_whitespace()
             .filter(|w| w.len() > 1 && !stopwords.contains(&w.to_lowercase().as_str()))
@@ -318,7 +322,9 @@ impl HybridRagOrchestrator {
     async fn search_graph_context(&self, analysis: &QueryAnalysis) -> Result<Vec<SearchResult>> {
         // Use keywords as starting points for graph traversal
         let query = analysis.keywords.join(" ");
-        self.graph_store.search(&query, self.config.vector_top_k).await
+        self.graph_store
+            .search(&query, self.config.vector_top_k)
+            .await
     }
 
     /// Search keywords if keyword store is available
@@ -419,7 +425,8 @@ impl HybridRagOrchestrator {
         prompt.push_str("당신은 조직의 지식 전문가입니다.\n");
         prompt.push_str("제공된 컨텍스트 정보만을 사용하여 질문에 답변하세요.\n");
         prompt.push_str("답변에 사용한 정보의 출처를 반드시 [출처: N] 형식으로 명시하세요.\n");
-        prompt.push_str("컨텍스트에 없는 정보는 \"해당 정보를 찾을 수 없습니다\"라고 답변하세요.\n");
+        prompt
+            .push_str("컨텍스트에 없는 정보는 \"해당 정보를 찾을 수 없습니다\"라고 답변하세요.\n");
 
         // Include ontology schema if configured
         if self.config.include_ontology {
@@ -470,7 +477,7 @@ impl HybridRagOrchestrator {
         // Find all [출처: N] patterns
         let re = regex::Regex::new(r"\[출처:\s*(\d+)\]").unwrap_or_else(|_| {
             // Fallback if regex fails
-            return regex::Regex::new(r"\[(\d+)\]").unwrap();
+            regex::Regex::new(r"\[(\d+)\]").unwrap()
         });
 
         for cap in re.captures_iter(answer) {
@@ -517,7 +524,11 @@ fn hash_content(content: &str) -> String {
 
     let mut hasher = DefaultHasher::new();
     // Hash first 100 chars for efficiency
-    content.chars().take(100).collect::<String>().hash(&mut hasher);
+    content
+        .chars()
+        .take(100)
+        .collect::<String>()
+        .hash(&mut hasher);
     format!("{:x}", hasher.finish())
 }
 

@@ -8,6 +8,7 @@ use std::path::PathBuf;
 
 /// Main application configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default)]
 pub struct AppConfig {
     /// Server configuration
     pub server: ServerConfig,
@@ -25,17 +26,6 @@ pub struct AppConfig {
     pub logging: LoggingConfig,
 }
 
-impl Default for AppConfig {
-    fn default() -> Self {
-        Self {
-            server: ServerConfig::default(),
-            database: DatabaseConfig::default(),
-            llm: LlmConfig::default(),
-            rag: RagConfig::default(),
-            logging: LoggingConfig::default(),
-        }
-    }
-}
 
 impl AppConfig {
     /// Load configuration from environment variables
@@ -396,8 +386,14 @@ mod tests {
 
     #[test]
     fn test_llm_provider_parse() {
-        assert_eq!("openai".parse::<LlmProvider>().unwrap(), LlmProvider::OpenAI);
-        assert_eq!("ollama".parse::<LlmProvider>().unwrap(), LlmProvider::Ollama);
+        assert_eq!(
+            "openai".parse::<LlmProvider>().unwrap(),
+            LlmProvider::OpenAI
+        );
+        assert_eq!(
+            "ollama".parse::<LlmProvider>().unwrap(),
+            LlmProvider::Ollama
+        );
         assert!("invalid".parse::<LlmProvider>().is_err());
     }
 }

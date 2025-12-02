@@ -54,11 +54,11 @@ async fn main() -> anyhow::Result<()> {
 
     match cli.command {
         Commands::Ingest { path } => {
-            println!("Ingesting documents from: {}", path);
+            println!("Ingesting documents from: {path}");
             // TODO: Implement ingestion
         }
         Commands::Query { question } => {
-            println!("Query: {}", question);
+            println!("Query: {question}");
             // TODO: Implement query
         }
         Commands::Verify { action } => match action {
@@ -67,11 +67,11 @@ async fn main() -> anyhow::Result<()> {
                 // TODO: Implement list
             }
             VerifyAction::Approve { id } => {
-                println!("Approving extraction: {}", id);
+                println!("Approving extraction: {id}");
                 // TODO: Implement approve
             }
             VerifyAction::Reject { id, reason } => {
-                println!("Rejecting extraction: {} (reason: {:?})", id, reason);
+                println!("Rejecting extraction: {id} (reason: {reason:?})");
                 // TODO: Implement reject
             }
         },
