@@ -12,7 +12,8 @@ services:
   surrealdb:
     image: surrealdb/surrealdb:v2.0.4
     container_name: otl-surrealdb
-    command: start --log trace --user root --pass root file:/data/srdb.db
+    user: root
+    command: start --log trace --user root --pass root surrealkv:/data/srdb.db
     ports:
       - "8000:8000"
     volumes:
@@ -20,7 +21,7 @@ services:
     environment:
       - SURREAL_LOG=trace
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "/surreal", "isready"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -39,7 +40,7 @@ services:
     environment:
       - QDRANT__LOG_LEVEL=INFO
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:6333/health"]
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/6333'"]
       interval: 10s
       timeout: 5s
       retries: 5
