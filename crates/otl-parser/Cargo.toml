@@ -16,6 +16,9 @@ serde_json = { workspace = true }
 # PDF parsing
 pdf-extract = { workspace = true }
 
+# DOCX parsing
+docx-rs = { workspace = true }
+
 # Excel parsing
 calamine = { workspace = true }
 

@@ -14,6 +14,14 @@
 use std::path::Path;
 use thiserror::Error;
 
+pub mod docx;
+pub mod excel;
+pub mod pdf;
+
+pub use docx::DocxParser;
+pub use excel::ExcelParser;
+pub use pdf::PdfParser;
+
 // ============================================================================
 // Error Types
 // ============================================================================
@@ -628,6 +636,18 @@ impl ParserRegistry {
 impl Default for ParserRegistry {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl ParserRegistry {
+    /// Create a registry with all default parsers registered
+    pub fn with_defaults() -> Self {
+        let mut registry = Self::new();
+        registry.register(PlainTextParser);
+        registry.register(PdfParser::new());
+        registry.register(DocxParser::new());
+        registry.register(ExcelParser::new());
+        registry
     }
 }
 

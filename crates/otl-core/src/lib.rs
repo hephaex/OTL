@@ -6,10 +6,13 @@
 //! - Common error types
 //! - Shared traits for search backends
 //! - Configuration management
+//! - Metadata storage (PostgreSQL)
 
 pub mod config;
+pub mod metadata;
 
 pub use config::{AppConfig, ConfigError, DatabaseConfig, LlmConfig, LlmProvider, RagConfig};
+pub use metadata::{MetadataRepository, MetadataStore};
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
