@@ -4,7 +4,7 @@
 //! for storing and querying ontology-based knowledge graphs.
 
 use async_trait::async_trait;
-use otl_core::{Entity, OtlError, Result, Triple};
+use otl_core::{Entity, Result, Triple};
 use uuid::Uuid;
 
 /// Trait for graph database operations

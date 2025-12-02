@@ -3,7 +3,7 @@
 //! Implements Named Entity Recognition (NER) and
 //! Relation Extraction (RE) for building knowledge graphs.
 
-use otl_core::{Entity, Result, SourceReference, Triple};
+use otl_core::Result;
 
 /// Extracted entity from text
 #[derive(Debug, Clone)]

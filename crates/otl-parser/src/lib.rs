@@ -542,7 +542,7 @@ fn chunk_text(
 }
 
 /// Find a good break point near the target position
-fn find_break_point(text: &str, start: usize, target: usize) -> usize {
+fn find_break_point(text: &str, _start: usize, target: usize) -> usize {
     // Search window
     let search_start = if target > 100 { target - 100 } else { target };
     let search_end = (target + 100).min(text.len());

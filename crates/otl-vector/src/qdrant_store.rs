@@ -2,11 +2,14 @@
 //!
 //! Provides connection management and vector operations
 //! for document chunk embeddings.
+//!
+//! Author: hephaex@gmail.com
 
 use async_trait::async_trait;
-use otl_core::{DatabaseConfig, DocumentAcl, OtlError, Result, SearchResult, SearchResultType, SourceReference};
+use otl_core::{AccessLevel, DatabaseConfig, DocumentAcl, OtlError, Result, SearchResult, SearchResultType, SourceReference};
 use qdrant_client::qdrant::{
-    CreateCollection, Distance, PointStruct, SearchPoints, VectorParams, VectorsConfig,
+    CreateCollectionBuilder, Distance, PointStruct, SearchPointsBuilder, VectorParamsBuilder,
+    DeletePointsBuilder, Filter, Condition, UpsertPointsBuilder,
 };
 use qdrant_client::Qdrant;
 use serde::{Deserialize, Serialize};
@@ -49,19 +52,13 @@ impl QdrantStore {
 
         if !exists {
             self.client
-                .create_collection(CreateCollection {
-                    collection_name: self.collection.clone(),
-                    vectors_config: Some(VectorsConfig {
-                        config: Some(qdrant_client::qdrant::vectors_config::Config::Params(
-                            VectorParams {
-                                size: self.dimension as u64,
-                                distance: Distance::Cosine.into(),
-                                ..Default::default()
-                            },
+                .create_collection(
+                    CreateCollectionBuilder::new(&self.collection)
+                        .vectors_config(VectorParamsBuilder::new(
+                            self.dimension as u64,
+                            Distance::Cosine,
                         )),
-                    }),
-                    ..Default::default()
-                })
+                )
                 .await
                 .map_err(|e| OtlError::DatabaseError(format!("Failed to create collection: {}", e)))?;
         }
@@ -97,9 +94,7 @@ impl super::VectorStore for QdrantStore {
             required_roles: vec![],
         };
 
-        let point = PointStruct::new(
-            embedding.id.to_string(),
-            embedding.vector.clone(),
+        let payload_map: std::collections::HashMap<String, qdrant_client::qdrant::Value> =
             serde_json::to_value(&payload)
                 .unwrap_or_default()
                 .as_object()
@@ -107,11 +102,16 @@ impl super::VectorStore for QdrantStore {
                 .unwrap_or_default()
                 .into_iter()
                 .map(|(k, v)| (k, v.into()))
-                .collect::<std::collections::HashMap<_, _>>(),
+                .collect();
+
+        let point = PointStruct::new(
+            embedding.id.to_string(),
+            embedding.vector.clone(),
+            payload_map,
         );
 
         self.client
-            .upsert_points(self.collection.clone(), None, vec![point], None)
+            .upsert_points(UpsertPointsBuilder::new(&self.collection, vec![point]))
             .await
             .map_err(|e| OtlError::DatabaseError(format!("Failed to upsert vector: {}", e)))?;
 
@@ -121,13 +121,10 @@ impl super::VectorStore for QdrantStore {
     async fn search(&self, query_vector: &[f32], limit: usize) -> Result<Vec<SearchResult>> {
         let results = self
             .client
-            .search_points(SearchPoints {
-                collection_name: self.collection.clone(),
-                vector: query_vector.to_vec(),
-                limit: limit as u64,
-                with_payload: Some(true.into()),
-                ..Default::default()
-            })
+            .search_points(
+                SearchPointsBuilder::new(&self.collection, query_vector.to_vec(), limit as u64)
+                    .with_payload(true),
+            )
             .await
             .map_err(|e| OtlError::SearchError(format!("Vector search failed: {}", e)))?;
 
@@ -151,18 +148,19 @@ impl super::VectorStore for QdrantStore {
                 let access_level = payload
                     .get("access_level")
                     .and_then(|v| v.as_str())
-                    .unwrap_or("internal");
+                    .map(|s| s.to_string())
+                    .unwrap_or_else(|| "internal".to_string());
 
                 Some(SearchResult {
                     content,
                     score: point.score,
                     source: SourceReference::new(document_id),
                     acl: DocumentAcl {
-                        access_level: match access_level {
-                            "public" => otl_core::AccessLevel::Public,
-                            "confidential" => otl_core::AccessLevel::Confidential,
-                            "restricted" => otl_core::AccessLevel::Restricted,
-                            _ => otl_core::AccessLevel::Internal,
+                        access_level: match access_level.as_str() {
+                            "public" => AccessLevel::Public,
+                            "confidential" => AccessLevel::Confidential,
+                            "restricted" => AccessLevel::Restricted,
+                            _ => AccessLevel::Internal,
                         },
                         ..Default::default()
                     },
@@ -175,39 +173,20 @@ impl super::VectorStore for QdrantStore {
     }
 
     async fn delete_by_document(&self, document_id: Uuid) -> Result<u64> {
-        use qdrant_client::qdrant::{PointsSelector, Filter, Condition, FieldCondition, Match};
-        use qdrant_client::qdrant::r#match::MatchValue;
+        let filter = Filter::must([Condition::matches(
+            "document_id",
+            document_id.to_string(),
+        )]);
 
-        let filter = Filter {
-            must: vec![Condition {
-                condition_one_of: Some(qdrant_client::qdrant::condition::ConditionOneOf::Field(
-                    FieldCondition {
-                        key: "document_id".to_string(),
-                        r#match: Some(Match {
-                            match_value: Some(MatchValue::Keyword(document_id.to_string())),
-                        }),
-                        ..Default::default()
-                    },
-                )),
-            }],
-            ..Default::default()
-        };
-
-        let result = self
+        let _result = self
             .client
             .delete_points(
-                self.collection.clone(),
-                None,
-                &PointsSelector {
-                    points_selector_one_of: Some(
-                        qdrant_client::qdrant::points_selector::PointsSelectorOneOf::Filter(filter),
-                    ),
-                },
-                None,
+                DeletePointsBuilder::new(&self.collection).points(filter),
             )
             .await
             .map_err(|e| OtlError::DatabaseError(format!("Failed to delete vectors: {}", e)))?;
 
-        Ok(result.result.map(|r| r.operation_id).unwrap_or(0))
+        // Return 1 as placeholder - actual count not available from delete response
+        Ok(1)
     }
 }

@@ -123,10 +123,13 @@ impl super::GraphStore for SurrealDbStore {
             triple.subject, triple.object
         );
 
+        let predicate = triple.predicate.clone();
+        let confidence = triple.confidence;
+
         self.client
             .query(&query)
-            .bind(("predicate", &triple.predicate))
-            .bind(("confidence", triple.confidence))
+            .bind(("predicate", predicate))
+            .bind(("confidence", confidence))
             .await
             .map_err(|e| OtlError::DatabaseError(format!("Failed to store triple: {}", e)))?;
 
@@ -151,10 +154,11 @@ impl super::GraphStore for SurrealDbStore {
     }
 
     async fn find_by_class(&self, class: &str, limit: usize) -> Result<Vec<Entity>> {
+        let class_owned = class.to_string();
         let records: Vec<EntityRecord> = self
             .client
             .query("SELECT * FROM entity WHERE class = $class LIMIT $limit")
-            .bind(("class", class))
+            .bind(("class", class_owned))
             .bind(("limit", limit))
             .await
             .map_err(|e| OtlError::DatabaseError(format!("Query failed: {}", e)))?
