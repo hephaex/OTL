@@ -2,9 +2,9 @@
 //!
 //! Provides HTTP endpoints for querying the knowledge system.
 
-pub mod routes;
 pub mod handlers;
 pub mod middleware;
+pub mod routes;
 
 use axum::{routing::get, Router};
 

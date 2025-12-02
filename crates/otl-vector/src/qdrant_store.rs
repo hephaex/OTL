@@ -6,10 +6,13 @@
 //! Author: hephaex@gmail.com
 
 use async_trait::async_trait;
-use otl_core::{AccessLevel, DatabaseConfig, DocumentAcl, OtlError, Result, SearchResult, SearchResultType, SourceReference};
+use otl_core::{
+    AccessLevel, DatabaseConfig, DocumentAcl, OtlError, Result, SearchResult, SearchResultType,
+    SourceReference,
+};
 use qdrant_client::qdrant::{
-    CreateCollectionBuilder, Distance, PointStruct, SearchPointsBuilder, VectorParamsBuilder,
-    DeletePointsBuilder, Filter, Condition, UpsertPointsBuilder,
+    Condition, CreateCollectionBuilder, DeletePointsBuilder, Distance, Filter, PointStruct,
+    SearchPointsBuilder, UpsertPointsBuilder, VectorParamsBuilder,
 };
 use qdrant_client::Qdrant;
 use serde::{Deserialize, Serialize};
@@ -27,7 +30,7 @@ impl QdrantStore {
     pub async fn new(config: &DatabaseConfig) -> Result<Self> {
         let client = Qdrant::from_url(&config.qdrant_url)
             .build()
-            .map_err(|e| OtlError::DatabaseError(format!("Qdrant connection failed: {}", e)))?;
+            .map_err(|e| OtlError::DatabaseError(format!("Qdrant connection failed: {e}")))?;
 
         Ok(Self {
             client,
@@ -39,11 +42,10 @@ impl QdrantStore {
     /// Initialize collection (run once on setup)
     pub async fn init_collection(&self) -> Result<()> {
         // Check if collection exists
-        let collections = self
-            .client
-            .list_collections()
-            .await
-            .map_err(|e| OtlError::DatabaseError(format!("Failed to list collections: {}", e)))?;
+        let collections =
+            self.client.list_collections().await.map_err(|e| {
+                OtlError::DatabaseError(format!("Failed to list collections: {e}"))
+            })?;
 
         let exists = collections
             .collections
@@ -53,14 +55,14 @@ impl QdrantStore {
         if !exists {
             self.client
                 .create_collection(
-                    CreateCollectionBuilder::new(&self.collection)
-                        .vectors_config(VectorParamsBuilder::new(
-                            self.dimension as u64,
-                            Distance::Cosine,
-                        )),
+                    CreateCollectionBuilder::new(&self.collection).vectors_config(
+                        VectorParamsBuilder::new(self.dimension as u64, Distance::Cosine),
+                    ),
                 )
                 .await
-                .map_err(|e| OtlError::DatabaseError(format!("Failed to create collection: {}", e)))?;
+                .map_err(|e| {
+                    OtlError::DatabaseError(format!("Failed to create collection: {e}"))
+                })?;
         }
 
         Ok(())
@@ -113,7 +115,7 @@ impl super::VectorStore for QdrantStore {
         self.client
             .upsert_points(UpsertPointsBuilder::new(&self.collection, vec![point]))
             .await
-            .map_err(|e| OtlError::DatabaseError(format!("Failed to upsert vector: {}", e)))?;
+            .map_err(|e| OtlError::DatabaseError(format!("Failed to upsert vector: {e}")))?;
 
         Ok(())
     }
@@ -126,7 +128,7 @@ impl super::VectorStore for QdrantStore {
                     .with_payload(true),
             )
             .await
-            .map_err(|e| OtlError::SearchError(format!("Vector search failed: {}", e)))?;
+            .map_err(|e| OtlError::SearchError(format!("Vector search failed: {e}")))?;
 
         let search_results: Vec<SearchResult> = results
             .result
@@ -173,18 +175,13 @@ impl super::VectorStore for QdrantStore {
     }
 
     async fn delete_by_document(&self, document_id: Uuid) -> Result<u64> {
-        let filter = Filter::must([Condition::matches(
-            "document_id",
-            document_id.to_string(),
-        )]);
+        let filter = Filter::must([Condition::matches("document_id", document_id.to_string())]);
 
         let _result = self
             .client
-            .delete_points(
-                DeletePointsBuilder::new(&self.collection).points(filter),
-            )
+            .delete_points(DeletePointsBuilder::new(&self.collection).points(filter))
             .await
-            .map_err(|e| OtlError::DatabaseError(format!("Failed to delete vectors: {}", e)))?;
+            .map_err(|e| OtlError::DatabaseError(format!("Failed to delete vectors: {e}")))?;
 
         // Return 1 as placeholder - actual count not available from delete response
         Ok(1)

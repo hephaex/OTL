@@ -179,7 +179,9 @@ impl FileType {
             Self::Docx => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             Self::Xlsx => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             Self::Xls => "application/vnd.ms-excel",
-            Self::Pptx => "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            Self::Pptx => {
+                "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+            }
             Self::Markdown => "text/markdown",
             Self::PlainText => "text/plain",
             Self::Html => "text/html",
@@ -294,7 +296,9 @@ impl Table {
 
     /// Get number of columns
     pub fn num_columns(&self) -> usize {
-        self.headers.len().max(self.rows.first().map(|r| r.len()).unwrap_or(0))
+        self.headers
+            .len()
+            .max(self.rows.first().map(|r| r.len()).unwrap_or(0))
     }
 
     /// Get number of rows
@@ -310,7 +314,7 @@ impl Table {
         if !self.headers.is_empty() {
             md.push('|');
             for h in &self.headers {
-                md.push_str(&format!(" {} |", h));
+                md.push_str(&format!(" {h} |"));
             }
             md.push('\n');
 
@@ -326,7 +330,7 @@ impl Table {
         for row in &self.rows {
             md.push('|');
             for cell in row {
-                md.push_str(&format!(" {} |", cell));
+                md.push_str(&format!(" {cell} |"));
             }
             md.push('\n');
         }
@@ -641,8 +645,10 @@ impl DocumentParser for PlainTextParser {
             source: e,
         })?;
 
-        Ok(ParsedDocument::new(path.display().to_string(), FileType::PlainText)
-            .with_content(content))
+        Ok(
+            ParsedDocument::new(path.display().to_string(), FileType::PlainText)
+                .with_content(content),
+        )
     }
 
     fn supported_types(&self) -> &[FileType] {
@@ -670,8 +676,7 @@ mod tests {
 
     #[test]
     fn test_table_to_markdown() {
-        let mut table = Table::new()
-            .with_headers(vec!["Name".to_string(), "Age".to_string()]);
+        let mut table = Table::new().with_headers(vec!["Name".to_string(), "Age".to_string()]);
         table.add_row(vec!["Alice".to_string(), "30".to_string()]);
         table.add_row(vec!["Bob".to_string(), "25".to_string()]);
 

@@ -136,10 +136,7 @@ impl DocumentAcl {
                     .map(|d| user.departments.contains(d))
                     .unwrap_or(false);
 
-                let role_match = self
-                    .required_roles
-                    .iter()
-                    .any(|r| user.roles.contains(r));
+                let role_match = self.required_roles.iter().any(|r| user.roles.contains(r));
 
                 dept_match || role_match
             }
@@ -432,7 +429,11 @@ pub struct DocumentMetadata {
 
 impl DocumentMetadata {
     /// Create new document metadata
-    pub fn new(title: impl Into<String>, file_path: impl Into<String>, file_type: impl Into<String>) -> Self {
+    pub fn new(
+        title: impl Into<String>,
+        file_path: impl Into<String>,
+        file_type: impl Into<String>,
+    ) -> Self {
         let now = Utc::now();
         Self {
             id: Uuid::new_v4(),

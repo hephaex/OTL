@@ -1,5 +1,4 @@
 use otl_api::create_router;
-use tracing_subscriber;
 
 #[tokio::main]
 async fn main() {
