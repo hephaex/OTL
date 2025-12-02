@@ -8,16 +8,13 @@
 //! Results are merged using Reciprocal Rank Fusion (RRF) and
 //! filtered based on Access Control Lists (ACL).
 
-use async_trait::async_trait;
-use futures::stream::BoxStream;
 use otl_core::{
-    Citation, DocumentAcl, LlmClient, OtlError, RagQuery, RagResponse, Result, SearchBackend,
-    SearchResult, SearchResultType, SourceReference, User,
+    Citation, LlmClient, RagQuery, RagResponse, Result, SearchBackend,
+    SearchResult, SearchResultType, User,
 };
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
-use uuid::Uuid;
 
 // ============================================================================
 // Configuration

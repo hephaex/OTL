@@ -4,7 +4,7 @@
 //! for storing and searching document embeddings.
 
 use async_trait::async_trait;
-use otl_core::{OtlError, Result, SearchResult};
+use otl_core::{Result, SearchResult};
 use uuid::Uuid;
 
 /// A vector with metadata
