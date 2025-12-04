@@ -70,7 +70,8 @@ impl Default for ExcelParser {
 
 impl DocumentParser for ExcelParser {
     fn parse(&self, path: &Path) -> Result<ParsedDocument> {
-        let mut workbook = open_workbook_auto(path).map_err(|e| ParserError::ExcelError(e.to_string()))?;
+        let mut workbook =
+            open_workbook_auto(path).map_err(|e| ParserError::ExcelError(e.to_string()))?;
 
         let sheet_names = workbook.sheet_names().to_vec();
 
@@ -175,7 +176,7 @@ mod tests {
             "test"
         );
         assert_eq!(ExcelParser::cell_to_string(&Data::Int(42)), "42");
-        assert_eq!(ExcelParser::cell_to_string(&Data::Float(3.14)), "3.14");
+        assert_eq!(ExcelParser::cell_to_string(&Data::Float(3.5)), "3.5");
         assert_eq!(ExcelParser::cell_to_string(&Data::Float(10.0)), "10");
         assert_eq!(ExcelParser::cell_to_string(&Data::Bool(true)), "TRUE");
     }

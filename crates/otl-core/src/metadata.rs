@@ -146,8 +146,8 @@ pub trait MetadataRepository: Send + Sync {
 impl MetadataRepository for MetadataStore {
     async fn create_document(&self, doc: &DocumentMetadata) -> Result<Uuid> {
         let access_level = doc.acl.access_level.to_string();
-        let metadata_json =
-            serde_json::to_value(&doc.extra).unwrap_or(serde_json::Value::Object(Default::default()));
+        let metadata_json = serde_json::to_value(&doc.extra)
+            .unwrap_or(serde_json::Value::Object(Default::default()));
 
         let row: (Uuid,) = sqlx::query_as(
             r#"
@@ -224,8 +224,8 @@ impl MetadataRepository for MetadataStore {
 
     async fn update_document(&self, doc: &DocumentMetadata) -> Result<()> {
         let access_level = doc.acl.access_level.to_string();
-        let metadata_json =
-            serde_json::to_value(&doc.extra).unwrap_or(serde_json::Value::Object(Default::default()));
+        let metadata_json = serde_json::to_value(&doc.extra)
+            .unwrap_or(serde_json::Value::Object(Default::default()));
 
         sqlx::query(
             r#"

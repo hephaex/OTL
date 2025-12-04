@@ -48,10 +48,11 @@ impl DocumentParser for DocxParser {
         })?;
 
         let mut buf = Vec::new();
-        file.read_to_end(&mut buf).map_err(|e| ParserError::IoError {
-            path: path.display().to_string(),
-            source: e,
-        })?;
+        file.read_to_end(&mut buf)
+            .map_err(|e| ParserError::IoError {
+                path: path.display().to_string(),
+                source: e,
+            })?;
 
         let docx = read_docx(&buf).map_err(|e| ParserError::DocxError(e.to_string()))?;
 
@@ -96,7 +97,9 @@ impl DocumentParser for DocxParser {
 
                     if is_heading && !para_text.trim().is_empty() {
                         // Save previous section
-                        if !current_section_content.trim().is_empty() || current_section_title.is_some() {
+                        if !current_section_content.trim().is_empty()
+                            || current_section_title.is_some()
+                        {
                             sections.push(DocumentSection {
                                 title: current_section_title.take(),
                                 level: current_section_level,

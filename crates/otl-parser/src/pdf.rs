@@ -130,7 +130,10 @@ impl PdfParser {
             || trimmed.starts_with("Section");
 
         // Check for all caps (common in headers)
-        let all_caps = trimmed.chars().filter(|c| c.is_alphabetic()).all(|c| c.is_uppercase())
+        let all_caps = trimmed
+            .chars()
+            .filter(|c| c.is_alphabetic())
+            .all(|c| c.is_uppercase())
             && trimmed.chars().any(|c| c.is_alphabetic());
 
         // Check for Korean section markers
@@ -183,8 +186,10 @@ impl DocumentParser for PdfParser {
 
         let sections = self.parse_sections(&text);
 
-        let mut metadata = DocumentParseMetadata::default();
-        metadata.page_count = page_count;
+        let metadata = DocumentParseMetadata {
+            page_count,
+            ..Default::default()
+        };
 
         let mut doc = ParsedDocument {
             file_path: path.display().to_string(),

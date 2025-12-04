@@ -7,8 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 /// Main application configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AppConfig {
     /// Server configuration
     pub server: ServerConfig,
@@ -25,7 +24,6 @@ pub struct AppConfig {
     /// Logging configuration
     pub logging: LoggingConfig,
 }
-
 
 impl AppConfig {
     /// Load configuration from environment variables

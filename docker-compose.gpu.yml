@@ -1,0 +1,27 @@
+# OTL Docker Compose - GPU Override
+#
+# Usage (with GPU support):
+#   docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d
+#
+# Requirements:
+#   - NVIDIA GPU with CUDA support
+#   - nvidia-container-toolkit installed
+#   - Docker configured for GPU access
+#
+# Installation (Ubuntu):
+#   distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
+#   curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -
+#   curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | \
+#     sudo tee /etc/apt/sources.list.d/nvidia-docker.list
+#   sudo apt update && sudo apt install -y nvidia-container-toolkit
+#   sudo systemctl restart docker
+
+services:
+  ollama:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

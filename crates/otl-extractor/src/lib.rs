@@ -3,10 +3,12 @@
 //! Implements Named Entity Recognition (NER) and
 //! Relation Extraction (RE) for building knowledge graphs.
 
+use serde::{Deserialize, Serialize};
+
 use otl_core::Result;
 
 /// Extracted entity from text
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExtractedEntity {
     pub text: String,
     pub entity_type: String,
@@ -16,7 +18,7 @@ pub struct ExtractedEntity {
 }
 
 /// Extracted relation between entities
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExtractedRelation {
     pub subject: ExtractedEntity,
     pub predicate: String,
@@ -34,5 +36,8 @@ pub trait RelationExtractor: Send + Sync {
     fn extract(&self, text: &str, entities: &[ExtractedEntity]) -> Result<Vec<ExtractedRelation>>;
 }
 
+pub mod hitl;
+pub mod loader;
+pub mod metrics;
 pub mod ner;
 pub mod relation;

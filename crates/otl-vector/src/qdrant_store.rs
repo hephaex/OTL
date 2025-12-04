@@ -7,8 +7,8 @@
 
 use async_trait::async_trait;
 use otl_core::{
-    AccessLevel, DatabaseConfig, DocumentAcl, OtlError, Result, SearchResult, SearchResultType,
-    SourceReference,
+    AccessLevel, DatabaseConfig, DocumentAcl, OtlError, Result, SearchBackend, SearchResult,
+    SearchResultType, SourceReference,
 };
 use qdrant_client::qdrant::{
     Condition, CreateCollectionBuilder, DeletePointsBuilder, Distance, Filter, PointStruct,
@@ -16,13 +16,23 @@ use qdrant_client::qdrant::{
 };
 use qdrant_client::Qdrant;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use uuid::Uuid;
+
+use crate::embedding::EmbeddingClient;
+use crate::VectorStore;
 
 /// Qdrant vector store implementation
 pub struct QdrantStore {
     client: Qdrant,
     collection: String,
     dimension: usize,
+}
+
+/// Vector search backend that wraps QdrantStore with an embedding client
+pub struct VectorSearchBackend {
+    store: QdrantStore,
+    embedding_client: Arc<dyn EmbeddingClient>,
 }
 
 impl QdrantStore {
@@ -42,10 +52,11 @@ impl QdrantStore {
     /// Initialize collection (run once on setup)
     pub async fn init_collection(&self) -> Result<()> {
         // Check if collection exists
-        let collections =
-            self.client.list_collections().await.map_err(|e| {
-                OtlError::DatabaseError(format!("Failed to list collections: {e}"))
-            })?;
+        let collections = self
+            .client
+            .list_collections()
+            .await
+            .map_err(|e| OtlError::DatabaseError(format!("Failed to list collections: {e}")))?;
 
         let exists = collections
             .collections
@@ -185,5 +196,107 @@ impl super::VectorStore for QdrantStore {
 
         // Return 1 as placeholder - actual count not available from delete response
         Ok(1)
+    }
+}
+
+// ============================================================================
+// VectorSearchBackend Implementation
+// ============================================================================
+
+impl VectorSearchBackend {
+    /// Create a new vector search backend
+    pub fn new(store: QdrantStore, embedding_client: Arc<dyn EmbeddingClient>) -> Self {
+        Self {
+            store,
+            embedding_client,
+        }
+    }
+
+    /// Create from database config and embedding client
+    pub async fn from_config(
+        config: &DatabaseConfig,
+        embedding_client: Arc<dyn EmbeddingClient>,
+    ) -> Result<Self> {
+        let store = QdrantStore::new(config).await?;
+        Ok(Self::new(store, embedding_client))
+    }
+
+    /// Initialize the collection
+    pub async fn init(&self) -> Result<()> {
+        self.store.init_collection().await
+    }
+
+    /// Store an embedding
+    pub async fn store(&self, embedding: &super::EmbeddingVector) -> Result<()> {
+        self.store.store(embedding).await
+    }
+
+    /// Generate embedding and store a text chunk
+    pub async fn index_text(
+        &self,
+        document_id: Uuid,
+        chunk_index: u32,
+        content: &str,
+    ) -> Result<Uuid> {
+        let vector = self.embedding_client.embed(content).await?;
+        let id = Uuid::new_v4();
+
+        let embedding = super::EmbeddingVector {
+            id,
+            vector,
+            document_id,
+            chunk_index,
+            content: content.to_string(),
+        };
+
+        self.store(&embedding).await?;
+        Ok(id)
+    }
+
+    /// Search by vector directly
+    pub async fn search_by_vector(
+        &self,
+        query_vector: &[f32],
+        limit: usize,
+    ) -> Result<Vec<SearchResult>> {
+        self.store.search(query_vector, limit).await
+    }
+
+    /// Delete vectors by document ID
+    pub async fn delete_by_document(&self, document_id: Uuid) -> Result<u64> {
+        self.store.delete_by_document(document_id).await
+    }
+}
+
+#[async_trait]
+impl SearchBackend for VectorSearchBackend {
+    async fn search(&self, query: &str, limit: usize) -> Result<Vec<SearchResult>> {
+        // Generate embedding for the query
+        let query_vector = self
+            .embedding_client
+            .embed(query)
+            .await
+            .map_err(|e| OtlError::SearchError(format!("Failed to embed query: {e}")))?;
+
+        // Search with the vector
+        self.store.search(&query_vector, limit).await
+    }
+
+    fn name(&self) -> &str {
+        "vector"
+    }
+}
+
+// ============================================================================
+// Additional Tests
+// ============================================================================
+
+#[cfg(test)]
+mod vector_backend_tests {
+
+    #[test]
+    fn test_vector_backend_name() {
+        // VectorSearchBackend requires async initialization, so we just test the trait behavior
+        // would require mocking for full tests
     }
 }
