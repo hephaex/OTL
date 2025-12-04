@@ -7,6 +7,8 @@
 //!
 //! Results are merged using Reciprocal Rank Fusion (RRF) and
 //! filtered based on Access Control Lists (ACL).
+//!
+//! Author: hephaex@gmail.com
 
 use otl_core::{
     Citation, LlmClient, RagQuery, RagResponse, Result, SearchBackend, SearchResult,
@@ -15,6 +17,10 @@ use otl_core::{
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
+
+pub mod llm;
+
+pub use llm::{create_llm_client, OllamaClient, OpenAiClient};
 
 // ============================================================================
 // Configuration

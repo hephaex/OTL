@@ -375,8 +375,7 @@ mod tests {
         let engine = TesseractEngine::new();
         assert_eq!(engine.name(), "tesseract");
 
-        let engine_with_config =
-            TesseractEngine::with_config(TesseractConfig::korean());
+        let engine_with_config = TesseractEngine::with_config(TesseractConfig::korean());
         assert_eq!(engine_with_config.config.language, "kor+eng");
     }
 

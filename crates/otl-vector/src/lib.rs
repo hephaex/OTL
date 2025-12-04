@@ -2,10 +2,18 @@
 //!
 //! Provides abstraction over vector databases (Qdrant)
 //! for storing and searching document embeddings.
+//!
+//! Author: hephaex@gmail.com
 
 use async_trait::async_trait;
 use otl_core::{Result, SearchResult};
 use uuid::Uuid;
+
+pub mod embedding;
+pub mod qdrant_store;
+
+pub use embedding::{create_embedding_client, EmbeddingClient, OllamaEmbedding, OpenAiEmbedding};
+pub use qdrant_store::{QdrantStore, VectorSearchBackend};
 
 /// A vector with metadata
 #[derive(Debug, Clone)]
@@ -29,5 +37,3 @@ pub trait VectorStore: Send + Sync {
     /// Delete vectors by document ID
     async fn delete_by_document(&self, document_id: Uuid) -> Result<u64>;
 }
-
-pub mod qdrant_store;

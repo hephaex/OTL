@@ -14,10 +14,15 @@ path = "src/main.rs"
 [dependencies]
 otl-core = { path = "../otl-core" }
 otl-parser = { path = "../otl-parser" }
+otl-extractor = { path = "../otl-extractor" }
+otl-rag = { path = "../otl-rag" }
 clap = { workspace = true }
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 anyhow = { workspace = true }
+uuid = { workspace = true }
+once_cell = "1.19"
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
+futures = { workspace = true }

@@ -95,12 +95,20 @@ services:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
-    # Uncomment below for GPU support
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:11434/api/tags || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    # GPU support: uncomment for NVIDIA GPU acceleration
+    # Requires: nvidia-container-toolkit installed on host
     # deploy:
     #   resources:
     #     reservations:
     #       devices:
-    #         - capabilities: [gpu]
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
 
 volumes:
   surrealdb_data:

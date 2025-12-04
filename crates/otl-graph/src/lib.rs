@@ -2,10 +2,18 @@
 //!
 //! Provides abstraction over graph databases (SurrealDB)
 //! for storing and querying ontology-based knowledge graphs.
+//!
+//! Author: hephaex@gmail.com
 
 use async_trait::async_trait;
 use otl_core::{Entity, Result, Triple};
 use uuid::Uuid;
+
+pub mod search;
+pub mod surrealdb_store;
+
+pub use search::GraphSearchBackend;
+pub use surrealdb_store::SurrealDbStore;
 
 /// Trait for graph database operations
 #[async_trait]
@@ -28,5 +36,3 @@ pub trait GraphStore: Send + Sync {
     /// Execute a graph query
     async fn query(&self, query: &str) -> Result<Vec<Entity>>;
 }
-
-pub mod surrealdb_store;
