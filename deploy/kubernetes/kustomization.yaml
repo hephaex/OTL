@@ -1,0 +1,28 @@
+# Kustomization for OTL Kubernetes deployment
+# Author: hephaex@gmail.com
+#
+# Usage:
+#   kubectl apply -k deploy/kubernetes/
+#
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: otl
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secret.yaml
+  - serviceaccount.yaml
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+  - hpa.yaml
+
+commonLabels:
+  app.kubernetes.io/part-of: otl
+  app.kubernetes.io/managed-by: kustomize
+
+images:
+  - name: ghcr.io/hephaex/otl-api
+    newTag: latest

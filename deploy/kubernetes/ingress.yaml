@@ -1,0 +1,36 @@
+# OTL API Ingress
+# Author: hephaex@gmail.com
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: otl-api
+  namespace: otl
+  labels:
+    app.kubernetes.io/name: otl
+    app.kubernetes.io/component: api
+  annotations:
+    # nginx ingress annotations
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    # cert-manager annotations (for automatic TLS)
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  # Uncomment for TLS
+  # tls:
+  #   - hosts:
+  #       - otl.example.com
+  #     secretName: otl-tls
+  rules:
+    - host: otl.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: otl-api
+                port:
+                  name: http

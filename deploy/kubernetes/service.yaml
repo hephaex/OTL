@@ -1,0 +1,44 @@
+# OTL API Service
+# Author: hephaex@gmail.com
+apiVersion: v1
+kind: Service
+metadata:
+  name: otl-api
+  namespace: otl
+  labels:
+    app.kubernetes.io/name: otl
+    app.kubernetes.io/component: api
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: otl
+    app.kubernetes.io/component: api
+---
+# LoadBalancer Service (for external access)
+apiVersion: v1
+kind: Service
+metadata:
+  name: otl-api-lb
+  namespace: otl
+  labels:
+    app.kubernetes.io/name: otl
+    app.kubernetes.io/component: api
+  annotations:
+    # AWS ALB annotations (uncomment if using AWS)
+    # service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    # service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: otl
+    app.kubernetes.io/component: api

@@ -1,0 +1,26 @@
+# OTL ConfigMap
+# Author: hephaex@gmail.com
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otl-config
+  namespace: otl
+  labels:
+    app.kubernetes.io/name: otl
+    app.kubernetes.io/component: config
+data:
+  API_HOST: "0.0.0.0"
+  API_PORT: "8080"
+  LOG_LEVEL: "info"
+  RUST_LOG: "otl_api=info,tower_http=info"
+
+  # Database URLs (override with secrets for production)
+  DATABASE_URL: "postgres://otl:otl@postgres:5432/otl"
+  SURREALDB_URL: "ws://surrealdb:8000"
+  QDRANT_URL: "http://qdrant:6334"
+  OLLAMA_URL: "http://ollama:11434"
+
+  # LLM settings
+  LLM_PROVIDER: "ollama"
+  LLM_MODEL: "llama2"
+  EMBEDDING_MODEL: "nomic-embed-text"

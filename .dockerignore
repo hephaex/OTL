@@ -1,0 +1,43 @@
+# Build artifacts
+target/
+*.rs.bk
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Test files
+tests/
+**/*_test.rs
+
+# Configuration (use env vars instead)
+.env
+.env.*
+!.env.example
+config.toml
+
+# Development
+.history/
+Makefile
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Data directories
+data/
