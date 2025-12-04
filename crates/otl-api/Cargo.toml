@@ -27,3 +27,5 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 utoipa = { workspace = true }
 utoipa-swagger-ui = { workspace = true }
+jsonwebtoken = "9"
+futures = { workspace = true }

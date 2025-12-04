@@ -1,0 +1,70 @@
+# ArgoCD AppProject for OTL
+# Author: hephaex@gmail.com
+#
+# Defines project-level settings and RBAC for OTL applications.
+#
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: otl
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: otl
+    app.kubernetes.io/component: argocd
+spec:
+  description: OTL Knowledge Management System
+
+  # Source repositories
+  sourceRepos:
+    - https://github.com/hephaex/OTL.git
+
+  # Destination clusters and namespaces
+  destinations:
+    - namespace: otl
+      server: https://kubernetes.default.svc
+    - namespace: otl-staging
+      server: https://kubernetes.default.svc
+
+  # Allowed cluster-scoped resources
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+
+  # Allowed namespace-scoped resources
+  namespaceResourceWhitelist:
+    - group: ''
+      kind: ConfigMap
+    - group: ''
+      kind: Secret
+    - group: ''
+      kind: Service
+    - group: ''
+      kind: ServiceAccount
+    - group: apps
+      kind: Deployment
+    - group: networking.k8s.io
+      kind: Ingress
+    - group: autoscaling
+      kind: HorizontalPodAutoscaler
+    - group: rbac.authorization.k8s.io
+      kind: Role
+    - group: rbac.authorization.k8s.io
+      kind: RoleBinding
+
+  # Roles for access control
+  roles:
+    - name: developer
+      description: Developer access to OTL project
+      policies:
+        - p, proj:otl:developer, applications, get, otl/*, allow
+        - p, proj:otl:developer, applications, sync, otl/*, allow
+      groups:
+        - otl-developers
+
+    - name: admin
+      description: Admin access to OTL project
+      policies:
+        - p, proj:otl:admin, applications, *, otl/*, allow
+        - p, proj:otl:admin, repositories, *, otl/*, allow
+      groups:
+        - otl-admins

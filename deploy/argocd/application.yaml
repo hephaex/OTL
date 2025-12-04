@@ -1,23 +1,28 @@
-# OTL ArgoCD Application
+# ArgoCD Application for OTL
+# Author: hephaex@gmail.com
 #
-# Defines the GitOps deployment configuration for OTL.
-# ArgoCD will monitor the repository and automatically sync
-# changes to the Kubernetes cluster.
-
+# This defines the OTL application for GitOps deployment.
+# Prerequisites:
+#   1. ArgoCD installed in the cluster
+#   2. GitHub repository accessible
+#
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: otl
   namespace: argocd
+  labels:
+    app.kubernetes.io/name: otl
+    app.kubernetes.io/component: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
 
   source:
-    repoURL: https://github.com/hephaex/OTL
+    repoURL: https://github.com/hephaex/OTL.git
     targetRevision: main
-    path: deploy/kubernetes/overlays/production
+    path: deploy/kubernetes
 
   destination:
     server: https://kubernetes.default.svc
@@ -29,6 +34,7 @@ spec:
       selfHeal: true
       allowEmpty: false
     syncOptions:
+      - Validate=true
       - CreateNamespace=true
       - PrunePropagationPolicy=foreground
       - PruneLast=true
@@ -46,28 +52,4 @@ spec:
       jsonPointers:
         - /spec/replicas
 
----
-# Staging environment
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: otl-staging
-  namespace: argocd
-spec:
-  project: default
-
-  source:
-    repoURL: https://github.com/hephaex/OTL
-    targetRevision: develop
-    path: deploy/kubernetes/overlays/staging
-
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: otl-staging
-
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
+  revisionHistoryLimit: 10

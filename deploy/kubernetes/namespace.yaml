@@ -1,0 +1,9 @@
+# OTL Namespace
+# Author: hephaex@gmail.com
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: otl
+  labels:
+    app.kubernetes.io/name: otl
+    app.kubernetes.io/component: namespace
