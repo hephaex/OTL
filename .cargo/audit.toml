@@ -9,9 +9,5 @@ ignore = [
     # Waiting for sqlx to update their dependencies
     "RUSTSEC-2023-0071",
 ]
-
-# Warnings that don't block CI
-[advisories.informational_warnings]
-unmaintained = "warn"    # paste crate - RUSTSEC-2024-0436
-unsound = "deny"
-yanked = "deny"
+# Allow informational warnings (unmaintained crates, etc.)
+informational_warnings = ["unmaintained"]
