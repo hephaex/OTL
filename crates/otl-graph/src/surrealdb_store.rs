@@ -169,12 +169,12 @@ impl super::GraphStore for SurrealDbStore {
 
         Ok(records
             .into_iter()
-            .filter_map(|r| {
+            .map(|r| {
                 let id =
                     r.id.as_ref()
                         .and_then(|t| Uuid::parse_str(&t.id.to_string()).ok())
                         .unwrap_or_default();
-                Some(Entity {
+                Entity {
                     id,
                     class: r.class,
                     properties: serde_json::from_value(r.properties).unwrap_or_default(),
@@ -183,7 +183,7 @@ impl super::GraphStore for SurrealDbStore {
                     ),
                     created_at: r.created_at.unwrap_or_default(),
                     updated_at: r.updated_at.unwrap_or_default(),
-                })
+                }
             })
             .collect())
     }

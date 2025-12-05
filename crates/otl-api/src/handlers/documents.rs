@@ -276,7 +276,7 @@ pub async fn delete_document(
     Ok((
         StatusCode::OK,
         Json(DeleteDocumentResponse {
-            message: format!("Document {} deleted", id),
+            message: format!("Document {id} deleted"),
         }),
     ))
 }

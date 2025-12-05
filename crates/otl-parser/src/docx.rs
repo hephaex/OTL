@@ -177,15 +177,14 @@ impl DocumentParser for DocxParser {
             });
         }
 
-        let mut metadata = DocumentParseMetadata::default();
-        metadata.word_count = Some(content.split_whitespace().count() as u32);
-
         // Try to get title from first heading
-        if let Some(first_section) = sections.first() {
-            if let Some(title) = &first_section.title {
-                metadata.title = Some(title.clone());
-            }
-        }
+        let title = sections.first().and_then(|s| s.title.clone());
+
+        let metadata = DocumentParseMetadata {
+            word_count: Some(content.split_whitespace().count() as u32),
+            title,
+            ..Default::default()
+        };
 
         Ok(ParsedDocument {
             file_path: path.display().to_string(),

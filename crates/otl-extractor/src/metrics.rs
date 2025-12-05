@@ -217,7 +217,7 @@ impl Evaluator {
         gold: &[GoldEntity],
     ) -> EntityMetrics {
         let predicted_set: Vec<GoldEntity> = predicted.iter().map(GoldEntity::from).collect();
-        let gold_set: HashSet<_> = gold.iter().collect();
+        let _gold_set: HashSet<_> = gold.iter().collect();
 
         let mut true_positives = 0;
         let mut matched_gold: HashSet<usize> = HashSet::new();
@@ -252,7 +252,7 @@ impl Evaluator {
     ) -> RelationMetrics {
         let predicted_set: HashSet<GoldRelation> =
             predicted.iter().map(GoldRelation::from).collect();
-        let gold_set: HashSet<_> = gold.iter().cloned().collect();
+        let gold_set: HashSet<GoldRelation> = gold.iter().cloned().collect();
 
         let true_positives = predicted_set.intersection(&gold_set).count();
         let false_positives = predicted_set.len() - true_positives;
@@ -463,21 +463,22 @@ mod tests {
 
     #[test]
     fn test_aggregate_metrics_report() {
-        let mut aggregate = AggregateMetrics::default();
-        aggregate.num_documents = 5;
-        aggregate.entity_metrics = EntityMetrics {
-            true_positives: 80,
-            false_positives: 10,
-            false_negatives: 10,
-            gold_total: 90,
-            predicted_total: 90,
-        };
-        aggregate.relation_metrics = RelationMetrics {
-            true_positives: 35,
-            false_positives: 15,
-            false_negatives: 10,
-            gold_total: 45,
-            predicted_total: 50,
+        let aggregate = AggregateMetrics {
+            num_documents: 5,
+            entity_metrics: EntityMetrics {
+                true_positives: 80,
+                false_positives: 10,
+                false_negatives: 10,
+                gold_total: 90,
+                predicted_total: 90,
+            },
+            relation_metrics: RelationMetrics {
+                true_positives: 35,
+                false_positives: 15,
+                false_negatives: 10,
+                gold_total: 45,
+                predicted_total: 50,
+            },
         };
 
         let report = aggregate.report();
@@ -488,22 +489,23 @@ mod tests {
 
     #[test]
     fn test_sprint2_criteria() {
-        let mut aggregate = AggregateMetrics::default();
-
         // Good metrics
-        aggregate.entity_metrics = EntityMetrics {
-            true_positives: 85,
-            false_positives: 15,
-            false_negatives: 10,
-            gold_total: 95,
-            predicted_total: 100,
-        };
-        aggregate.relation_metrics = RelationMetrics {
-            true_positives: 75,
-            false_positives: 25,
-            false_negatives: 10,
-            gold_total: 85,
-            predicted_total: 100,
+        let aggregate = AggregateMetrics {
+            num_documents: 0,
+            entity_metrics: EntityMetrics {
+                true_positives: 85,
+                false_positives: 15,
+                false_negatives: 10,
+                gold_total: 95,
+                predicted_total: 100,
+            },
+            relation_metrics: RelationMetrics {
+                true_positives: 75,
+                false_positives: 25,
+                false_negatives: 10,
+                gold_total: 85,
+                predicted_total: 100,
+            },
         };
 
         let (ner_ok, re_ok) = aggregate.meets_sprint2_criteria();

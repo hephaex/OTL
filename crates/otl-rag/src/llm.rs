@@ -47,12 +47,14 @@ struct OpenAiResponse {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct Choice {
     message: Message,
     finish_reason: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct StreamChoice {
     delta: Delta,
     finish_reason: Option<String>,
@@ -241,6 +243,7 @@ struct OllamaRequest {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct OllamaResponse {
     response: String,
     done: bool,

@@ -106,7 +106,7 @@ pub struct ListEntitiesQuery {
 )]
 pub async fn list_entities(
     State(state): State<Arc<AppState>>,
-    Query(params): Query<ListEntitiesQuery>,
+    Query(_params): Query<ListEntitiesQuery>,
 ) -> Result<impl IntoResponse, AppError> {
     state.increment_requests();
 

@@ -70,8 +70,8 @@ impl RelationType {
         }
     }
 
-    /// Get from string
-    pub fn from_str(s: &str) -> Option<Self> {
+    /// Parse from string representation
+    pub fn parse_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "worksin" => Some(Self::WorksIn),
             "hasposition" => Some(Self::HasPosition),
@@ -588,12 +588,12 @@ mod tests {
     }
 
     #[test]
-    fn test_relation_type_from_str() {
+    fn test_relation_type_parse_str() {
         assert_eq!(
-            RelationType::from_str("worksIn"),
+            RelationType::parse_str("worksIn"),
             Some(RelationType::WorksIn)
         );
-        assert_eq!(RelationType::from_str("unknown"), None);
+        assert_eq!(RelationType::parse_str("unknown"), None);
     }
 
     #[test]
