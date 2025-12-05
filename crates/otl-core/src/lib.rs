@@ -68,19 +68,14 @@ pub type Result<T> = std::result::Result<T, OtlError>;
 /// - `Internal`: Organization members only
 /// - `Confidential`: Specific departments/roles only
 /// - `Restricted`: Named individuals only
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum AccessLevel {
     Public,
+    #[default]
     Internal,
     Confidential,
     Restricted,
-}
-
-impl Default for AccessLevel {
-    fn default() -> Self {
-        Self::Internal
-    }
 }
 
 impl std::fmt::Display for AccessLevel {
