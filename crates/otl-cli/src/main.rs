@@ -1,6 +1,7 @@
 //! OTL CLI - Command-line interface
 //!
 //! Usage:
+//! ```text
 //!   otl ingest <path>
 //!   otl query <question>
 //!   otl verify list
@@ -8,6 +9,7 @@
 //!   otl verify reject <id> [reason]
 //!   otl verify stats
 //!   otl extract <path>
+//! ```
 //!
 //! Author: hephaex@gmail.com
 

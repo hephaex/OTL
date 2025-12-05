@@ -581,7 +581,7 @@ pub struct RagResponse {
 /// Citation for a claim in the answer
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Citation {
-    /// Citation index (e.g., [1], [2])
+    /// Citation index (e.g., `[1]`, `[2]`)
     pub index: u32,
 
     /// Cited text snippet
