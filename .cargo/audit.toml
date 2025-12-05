@@ -1,0 +1,17 @@
+# Configuration for cargo-audit
+# These are known upstream vulnerabilities that we cannot fix directly
+# and need to wait for upstream maintainers to address
+
+[advisories]
+# Ignore list for known vulnerabilities in transitive dependencies
+ignore = [
+    # RSA timing side-channel vulnerability - from sqlx-mysql
+    # Waiting for sqlx to update their dependencies
+    "RUSTSEC-2023-0071",
+]
+
+# Warnings that don't block CI
+[advisories.informational_warnings]
+unmaintained = "warn"    # paste crate - RUSTSEC-2024-0436
+unsound = "deny"
+yanked = "deny"
