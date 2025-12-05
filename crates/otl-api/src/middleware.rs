@@ -128,8 +128,7 @@ pub async fn optional_auth_middleware(mut request: Request<Body>, next: Next) ->
         .map(|s| s.to_string());
 
     if let Some(h) = auth_header {
-        if h.starts_with("Bearer ") {
-            let token = &h[7..];
+        if let Some(token) = h.strip_prefix("Bearer ") {
             if let Ok(token_data) = decode::<Claims>(
                 token,
                 &DecodingKey::from_secret(jwt_secret.as_bytes()),

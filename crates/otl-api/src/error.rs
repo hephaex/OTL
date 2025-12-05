@@ -37,7 +37,7 @@ impl ApiError {
     }
 
     pub fn not_found(resource: &str) -> Self {
-        Self::new("NOT_FOUND", format!("{} not found", resource))
+        Self::new("NOT_FOUND", format!("{resource} not found"))
     }
 
     pub fn bad_request(message: impl Into<String>) -> Self {

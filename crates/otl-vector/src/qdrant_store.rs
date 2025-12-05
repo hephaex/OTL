@@ -144,7 +144,7 @@ impl super::VectorStore for QdrantStore {
         let search_results: Vec<SearchResult> = results
             .result
             .into_iter()
-            .filter_map(|point| {
+            .map(|point| {
                 let payload = point.payload;
                 let content = payload
                     .get("content")
@@ -164,7 +164,7 @@ impl super::VectorStore for QdrantStore {
                     .map(|s| s.to_string())
                     .unwrap_or_else(|| "internal".to_string());
 
-                Some(SearchResult {
+                SearchResult {
                     content,
                     score: point.score,
                     source: SourceReference::new(document_id),
@@ -178,7 +178,7 @@ impl super::VectorStore for QdrantStore {
                         ..Default::default()
                     },
                     result_type: SearchResultType::Vector,
-                })
+                }
             })
             .collect();
 

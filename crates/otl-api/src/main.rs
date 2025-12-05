@@ -26,7 +26,7 @@ async fn main() -> anyhow::Result<()> {
         .and_then(|p| p.parse().ok())
         .unwrap_or(8080u16);
 
-    let addr = format!("{}:{}", host, port);
+    let addr = format!("{host}:{port}");
 
     // Create application state
     let state = Arc::new(AppState::new(config));

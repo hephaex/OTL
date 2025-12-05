@@ -329,7 +329,7 @@ mod tests {
         queue.add_entity(doc_id, high_conf);
 
         // Manually collect entities
-        let all_entities: Vec<_> = queue
+        let _all_entities: Vec<_> = queue
             .pending_entities()
             .iter()
             .map(|e| (*e).clone())
