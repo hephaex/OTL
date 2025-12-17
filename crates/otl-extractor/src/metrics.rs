@@ -491,7 +491,6 @@ mod tests {
     fn test_sprint2_criteria() {
         // Good metrics
         let aggregate = AggregateMetrics {
-            num_documents: 0,
             entity_metrics: EntityMetrics {
                 true_positives: 85,
                 false_positives: 15,
@@ -506,6 +505,7 @@ mod tests {
                 gold_total: 85,
                 predicted_total: 100,
             },
+            ..Default::default()
         };
 
         let (ner_ok, re_ok) = aggregate.meets_sprint2_criteria();

@@ -293,7 +293,6 @@ impl SearchBackend for VectorSearchBackend {
 
 #[cfg(test)]
 mod vector_backend_tests {
-
     #[test]
     fn test_vector_backend_name() {
         // VectorSearchBackend requires async initialization, so we just test the trait behavior

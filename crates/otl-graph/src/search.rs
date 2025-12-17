@@ -5,6 +5,8 @@
 //!
 //! Author: hephaex@gmail.com
 
+#![allow(clippy::uninlined_format_args)]
+
 use async_trait::async_trait;
 use otl_core::{
     AccessLevel, DatabaseConfig, DocumentAcl, OtlError, Result, SearchBackend, SearchResult,
@@ -83,8 +85,9 @@ impl GraphSearchBackend {
             FROM entity
             WHERE properties.text CONTAINS $pattern
             ORDER BY relevance DESC
-            LIMIT {limit}
-            "#
+            LIMIT {}
+            "#,
+            limit
         );
 
         let records: Vec<GraphNodeRecord> = self
@@ -100,11 +103,7 @@ impl GraphSearchBackend {
     }
 
     /// Get related entities via graph traversal
-    async fn get_related_entities(
-        &self,
-        entity_ids: &[String],
-        depth: u32,
-    ) -> Result<Vec<GraphNode>> {
+    async fn get_related_entities(&self, entity_ids: &[String], depth: u32) -> Result<Vec<GraphNode>> {
         if entity_ids.is_empty() {
             return Ok(Vec::new());
         }
@@ -112,7 +111,7 @@ impl GraphSearchBackend {
         // Build IDs for query
         let ids_str = entity_ids
             .iter()
-            .map(|id| format!("entity:{id}"))
+            .map(|id| format!("entity:{}", id))
             .collect::<Vec<_>>()
             .join(", ");
 
@@ -154,7 +153,7 @@ impl GraphSearchBackend {
 
         let ids_str = entity_ids
             .iter()
-            .map(|id| format!("entity:{id}"))
+            .map(|id| format!("entity:{}", id))
             .collect::<Vec<_>>()
             .join(", ");
 
@@ -235,7 +234,7 @@ impl GraphSearchBackend {
         // Add important properties
         for (key, value) in &node.properties {
             if key != "text" && key != "start" && key != "end" {
-                parts.push(format!("{key}: {value}"));
+                parts.push(format!("{}: {}", key, value));
             }
         }
 
@@ -264,7 +263,10 @@ impl GraphSearchBackend {
 impl SearchBackend for GraphSearchBackend {
     async fn search(&self, query: &str, limit: usize) -> Result<Vec<SearchResult>> {
         // Extract keywords from query
-        let keywords: Vec<&str> = query.split_whitespace().filter(|w| w.len() > 1).collect();
+        let keywords: Vec<&str> = query
+            .split_whitespace()
+            .filter(|w| w.len() > 1)
+            .collect();
 
         if keywords.is_empty() {
             return Ok(Vec::new());
@@ -281,9 +283,7 @@ impl SearchBackend for GraphSearchBackend {
         let entity_ids: Vec<String> = initial_nodes.iter().map(|n| n.id.clone()).collect();
 
         // Get related entities via graph traversal
-        let related_nodes = self
-            .get_related_entities(&entity_ids, self.max_depth)
-            .await?;
+        let related_nodes = self.get_related_entities(&entity_ids, self.max_depth).await?;
 
         // Get relationships
         let all_ids: Vec<String> = initial_nodes
@@ -343,7 +343,10 @@ struct SourceRecord {
 
 impl From<GraphNodeRecord> for GraphNode {
     fn from(record: GraphNodeRecord) -> Self {
-        let id = record.id.map(|t| t.id.to_string()).unwrap_or_default();
+        let id = record
+            .id
+            .map(|t| t.id.to_string())
+            .unwrap_or_default();
 
         let text = record
             .properties
@@ -423,7 +426,6 @@ impl From<RelationRecord> for GraphRelation {
 
 #[cfg(test)]
 mod tests {
-
     #[test]
     fn test_format_node_content() {
         // Would need full backend for testing, just verify compilation

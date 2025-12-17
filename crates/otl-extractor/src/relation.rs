@@ -19,11 +19,11 @@ use otl_core::Result;
 #[serde(rename_all = "snake_case")]
 pub enum RelationType {
     // Employment relations
-    WorksIn,     // Employee -> Department
-    HasPosition, // Employee -> Position
-    HasGrade,    // Employee -> Grade
-    ManagedBy,   // Employee -> Manager
-    ReportsTo,   // Employee -> Manager
+    WorksIn,          // Employee -> Department
+    HasPosition,      // Employee -> Position
+    HasGrade,         // Employee -> Grade
+    ManagedBy,        // Employee -> Manager
+    ReportsTo,        // Employee -> Manager
 
     // Leave relations
     RequestsLeave,    // Employee -> LeaveType
@@ -32,18 +32,18 @@ pub enum RelationType {
     RequiresDocument, // LeaveType -> Document
 
     // Approval relations
-    HasStep,    // ApprovalProcess -> ApprovalStep
-    ApprovedBy, // ApprovalStep -> Role/Manager
-    NextStep,   // ApprovalStep -> ApprovalStep
+    HasStep,          // ApprovalProcess -> ApprovalStep
+    ApprovedBy,       // ApprovalStep -> Role/Manager
+    NextStep,         // ApprovalStep -> ApprovalStep
 
     // Document relations
-    DefinedIn,  // Entity -> Regulation
-    References, // Document -> Document/Regulation
-    Requires,   // Process -> Document
+    DefinedIn,        // Entity -> Regulation
+    References,       // Document -> Document/Regulation
+    Requires,         // Process -> Document
 
     // Generic
-    HasValue,  // Entity -> Amount/Duration
-    RelatedTo, // Generic relation
+    HasValue,         // Entity -> Amount/Duration
+    RelatedTo,        // Generic relation
 }
 
 impl RelationType {
@@ -245,9 +245,7 @@ impl RuleBasedRe {
     /// Check if text between entities contains keywords
     fn contains_keywords(&self, text: &str, keywords: &[String]) -> bool {
         let text_lower = text.to_lowercase();
-        keywords
-            .iter()
-            .any(|k| text_lower.contains(&k.to_lowercase()))
+        keywords.iter().any(|k| text_lower.contains(&k.to_lowercase()))
     }
 
     /// Find relations between entities based on patterns
@@ -392,12 +390,7 @@ impl LlmRe {
 
     /// Build the extraction prompt
     pub fn build_prompt(&self, text: &str, entities: &[ExtractedEntity]) -> String {
-        let relation_types: Vec<&str> = self
-            .config
-            .relation_types
-            .iter()
-            .map(|r| r.as_str())
-            .collect();
+        let relation_types: Vec<&str> = self.config.relation_types.iter().map(|r| r.as_str()).collect();
 
         let entities_json: Vec<serde_json::Value> = entities
             .iter()
@@ -589,10 +582,7 @@ mod tests {
 
     #[test]
     fn test_relation_type_parse_str() {
-        assert_eq!(
-            RelationType::parse_str("worksIn"),
-            Some(RelationType::WorksIn)
-        );
+        assert_eq!(RelationType::parse_str("worksIn"), Some(RelationType::WorksIn));
         assert_eq!(RelationType::parse_str("unknown"), None);
     }
 

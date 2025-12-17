@@ -125,9 +125,9 @@ docs(readme): update installation instructions
 - Reference issue numbers and PR numbers
 
 ❌ DO NOT:
-- Mention AI tools (Claude, GPT, Copilot, etc.) in commits
-- Include "AI generated" or "AI assisted" in any text
-- Reference AI assistants in comments or documentation
+- Mention third-party code generation tools in commits
+- Include tool-generated markers in any text
+- Reference external assistants in comments or documentation
 ```
 
 ### Testing

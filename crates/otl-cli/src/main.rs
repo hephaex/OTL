@@ -13,6 +13,8 @@
 //!
 //! Author: hephaex@gmail.com
 
+#![allow(clippy::uninlined_format_args)]
+
 use std::io::{self, Write};
 use std::sync::Mutex;
 
@@ -129,19 +131,10 @@ async fn main() -> anyhow::Result<()> {
             println!("Ingesting documents from: {path}");
             // TODO: Implement ingestion
         }
-        Commands::Query {
-            question,
-            stream,
-            ollama,
-            model,
-        } => {
+        Commands::Query { question, stream, ollama, model } => {
             cmd_query(&question, stream, ollama, model.as_deref()).await?;
         }
-        Commands::Extract {
-            input,
-            entities_only,
-            relations_only,
-        } => {
+        Commands::Extract { input, entities_only, relations_only } => {
             cmd_extract(&input, entities_only, relations_only)?;
         }
         Commands::Verify { action } => match action {
@@ -177,7 +170,7 @@ fn cmd_extract(input: &str, entities_only: bool, relations_only: bool) -> anyhow
     let entities = ner.extract(input)?;
     let relations = re.extract(input, &entities)?;
 
-    if !entities_only {
+    if !relations_only {
         println!("\n=== Entities ===\n");
         if entities.is_empty() {
             println!("  (no entities found)");
@@ -185,13 +178,17 @@ fn cmd_extract(input: &str, entities_only: bool, relations_only: bool) -> anyhow
             for entity in &entities {
                 println!(
                     "  [{:.2}] {}: \"{}\" @ {}..{}",
-                    entity.confidence, entity.entity_type, entity.text, entity.start, entity.end
+                    entity.confidence,
+                    entity.entity_type,
+                    entity.text,
+                    entity.start,
+                    entity.end
                 );
             }
         }
     }
 
-    if !relations_only {
+    if !entities_only {
         println!("\n=== Relations ===\n");
         if relations.is_empty() {
             println!("  (no relations found)");
@@ -273,18 +270,15 @@ fn cmd_verify_show(id: &str) -> anyhow::Result<()> {
         println!("  Document:   {}", entity.document_id);
         println!("  Text:       \"{}\"", entity.entity.text);
         println!("  Type:       {}", entity.entity.entity_type);
-        println!(
-            "  Position:   {}..{}",
-            entity.entity.start, entity.entity.end
-        );
+        println!("  Position:   {}..{}", entity.entity.start, entity.entity.end);
         println!("  Confidence: {:.2}", entity.entity.confidence);
         println!("  Status:     {}", entity.status);
         println!("  Created:    {}", entity.created_at);
         if let Some(reviewer) = &entity.reviewer {
-            println!("  Reviewer:   {reviewer}");
+            println!("  Reviewer:   {}", reviewer);
         }
         if let Some(note) = &entity.review_note {
-            println!("  Note:       {note}");
+            println!("  Note:       {}", note);
         }
     } else if let Some(rel) = queue.get_relation(uuid) {
         println!("\n=== Relation Details ===\n");
@@ -298,13 +292,13 @@ fn cmd_verify_show(id: &str) -> anyhow::Result<()> {
         println!("  Status:     {}", rel.status);
         println!("  Created:    {}", rel.created_at);
         if let Some(reviewer) = &rel.reviewer {
-            println!("  Reviewer:   {reviewer}");
+            println!("  Reviewer:   {}", reviewer);
         }
         if let Some(note) = &rel.review_note {
-            println!("  Note:       {note}");
+            println!("  Note:       {}", note);
         }
     } else {
-        println!("Item not found: {id}");
+        println!("Item not found: {}", id);
     }
 
     Ok(())
@@ -318,16 +312,16 @@ fn cmd_verify_approve(id: &str, note: Option<&str>) -> anyhow::Result<()> {
     let reviewer = std::env::var("USER").unwrap_or_else(|_| "cli".to_string());
 
     if queue.approve_entity(uuid, &reviewer, note) {
-        println!("Entity approved: {id}");
+        println!("Entity approved: {}", id);
         return Ok(());
     }
 
     if queue.approve_relation(uuid, &reviewer, note) {
-        println!("Relation approved: {id}");
+        println!("Relation approved: {}", id);
         return Ok(());
     }
 
-    println!("Item not found or already reviewed: {id}");
+    println!("Item not found or already reviewed: {}", id);
     Ok(())
 }
 
@@ -340,16 +334,16 @@ fn cmd_verify_reject(id: &str, reason: Option<&str>) -> anyhow::Result<()> {
     let reason = reason.unwrap_or("No reason provided");
 
     if queue.reject_entity(uuid, &reviewer, reason) {
-        println!("Entity rejected: {id}");
+        println!("Entity rejected: {}", id);
         return Ok(());
     }
 
     if queue.reject_relation(uuid, &reviewer, reason) {
-        println!("Relation rejected: {id}");
+        println!("Relation rejected: {}", id);
         return Ok(());
     }
 
-    println!("Item not found or already reviewed: {id}");
+    println!("Item not found or already reviewed: {}", id);
     Ok(())
 }
 
@@ -365,10 +359,7 @@ fn cmd_verify_stats() -> anyhow::Result<()> {
     println!("    Auto-approved: {}", stats.auto_approved_entities);
     println!("    Rejected:      {}", stats.rejected_entities);
     println!("    Total:         {}", stats.total_entities());
-    println!(
-        "    Approval rate: {:.1}%",
-        stats.entity_approval_rate() * 100.0
-    );
+    println!("    Approval rate: {:.1}%", stats.entity_approval_rate() * 100.0);
 
     println!("\n  Relations:");
     println!("    Pending:       {}", stats.pending_relations);
@@ -376,10 +367,7 @@ fn cmd_verify_stats() -> anyhow::Result<()> {
     println!("    Auto-approved: {}", stats.auto_approved_relations);
     println!("    Rejected:      {}", stats.rejected_relations);
     println!("    Total:         {}", stats.total_relations());
-    println!(
-        "    Approval rate: {:.1}%",
-        stats.relation_approval_rate() * 100.0
-    );
+    println!("    Approval rate: {:.1}%", stats.relation_approval_rate() * 100.0);
 
     Ok(())
 }
@@ -390,8 +378,7 @@ fn cmd_verify_demo() -> anyhow::Result<()> {
     let doc_id = Uuid::new_v4();
 
     // Sample HR text for extraction
-    let sample_text =
-        "연차휴가는 최대 15일까지 사용할 수 있습니다. 병가 신청에는 진단서가 필요합니다.
+    let sample_text = "연차휴가는 최대 15일까지 사용할 수 있습니다. 병가 신청에는 진단서가 필요합니다.
 육아휴직은 최대 2년간 사용 가능합니다. 팀장 승인 후 인사팀에서 최종 결재합니다.";
 
     let ner = RuleBasedNer::new();
@@ -401,7 +388,7 @@ fn cmd_verify_demo() -> anyhow::Result<()> {
     let relations = re.extract(sample_text, &entities)?;
 
     println!("Extracting from sample HR text...\n");
-    println!("Text: {sample_text}\n");
+    println!("Text: {}\n", sample_text);
 
     // Add entities to queue
     for entity in entities {
@@ -450,11 +437,11 @@ async fn cmd_query(
     // Determine LLM to use
     let llm_client: Box<dyn LlmClient> = if use_ollama {
         let model = model.unwrap_or("llama2");
-        println!("Using Ollama with model: {model}");
+        println!("Using Ollama with model: {}", model);
         Box::new(OllamaClient::new("http://localhost:11434", model))
     } else if let Ok(api_key) = std::env::var("OPENAI_API_KEY") {
         let model = model.unwrap_or("gpt-4o-mini");
-        println!("Using OpenAI with model: {model}");
+        println!("Using OpenAI with model: {}", model);
         Box::new(otl_rag::OpenAiClient::new(&api_key, model, 2048, 0.1))
     } else {
         println!("Note: No OPENAI_API_KEY found, falling back to Ollama");
@@ -462,7 +449,7 @@ async fn cmd_query(
         Box::new(OllamaClient::new("http://localhost:11434", model))
     };
 
-    println!("\nQuestion: {question}\n");
+    println!("\nQuestion: {}\n", question);
     println!("---");
 
     // Build a simple prompt (in production, this would include RAG context)
@@ -470,9 +457,10 @@ async fn cmd_query(
         r#"당신은 조직의 지식 전문가입니다.
 다음 질문에 한국어로 답변해 주세요.
 
-질문: {question}
+질문: {}
 
-답변:"#
+답변:"#,
+        question
     );
 
     if stream {
@@ -483,11 +471,11 @@ async fn cmd_query(
                 while let Some(result) = stream.next().await {
                     match result {
                         Ok(chunk) => {
-                            print!("{chunk}");
+                            print!("{}", chunk);
                             io::stdout().flush()?;
                         }
                         Err(e) => {
-                            eprintln!("\nStream error: {e}");
+                            eprintln!("\nStream error: {}", e);
                             break;
                         }
                     }
@@ -495,17 +483,17 @@ async fn cmd_query(
                 println!("\n");
             }
             Err(e) => {
-                eprintln!("Failed to start stream: {e}");
+                eprintln!("Failed to start stream: {}", e);
             }
         }
     } else {
         // Regular response
         match llm_client.generate(&prompt).await {
             Ok(response) => {
-                println!("\n{response}\n");
+                println!("\n{}\n", response);
             }
             Err(e) => {
-                eprintln!("Error: {e}");
+                eprintln!("Error: {}", e);
             }
         }
     }

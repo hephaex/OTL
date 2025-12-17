@@ -127,7 +127,7 @@ Reviewer → review.md 작성
 ### 🚫 금지 사항
 
 ```
-❌ AI 도구명 언급 금지 (Claude, GPT, Copilot 등)
+❌ 외부 도구명 언급 금지
 ❌ 자동 생성 표시 금지
 ❌ 외부 공개 금지
 
