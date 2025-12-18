@@ -1,0 +1,43 @@
+# OTL ConfigMap
+# Author: hephaex@gmail.com
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otl-config
+  namespace: otl
+  labels:
+    app.kubernetes.io/name: otl
+    app.kubernetes.io/component: config
+data:
+  # API Server Configuration
+  API_HOST: "0.0.0.0"
+  API_PORT: "8080"
+  RUST_LOG: "otl_api=info,tower_http=info"
+
+  # Database URLs (services within cluster)
+  SURREALDB_URL: "ws://surrealdb:8000"
+  SURREALDB_NAMESPACE: "otl"
+  SURREALDB_DATABASE: "knowledge"
+
+  QDRANT_URL: "http://qdrant:6334"
+  QDRANT_COLLECTION: "otl_chunks"
+  VECTOR_DIMENSION: "1536"
+
+  POSTGRES_URL: "postgres://postgres:5432/otl"
+
+  # LLM Configuration
+  LLM_PROVIDER: "openai"
+  LLM_MODEL: "gpt-4o-mini"
+  EMBEDDING_MODEL: "text-embedding-3-small"
+  LLM_MAX_TOKENS: "2048"
+  LLM_TEMPERATURE: "0.1"
+
+  # Ollama (optional local LLM)
+  OLLAMA_URL: "http://ollama:11434"
+
+  # RAG Configuration
+  RAG_VECTOR_TOP_K: "20"
+  RAG_GRAPH_DEPTH: "2"
+  RAG_FINAL_TOP_K: "5"
+  RAG_MIN_SCORE: "0.0"

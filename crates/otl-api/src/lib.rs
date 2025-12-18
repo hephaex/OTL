@@ -94,6 +94,10 @@ pub fn create_router(state: Arc<AppState>) -> Router {
             axum::routing::get(handlers::health::readiness_check),
         )
         .route("/metrics", axum::routing::get(handlers::health::metrics))
+        .route(
+            "/metrics/prometheus",
+            axum::routing::get(handlers::health::prometheus_metrics),
+        )
         .layer(TraceLayer::new_for_http())
         .layer(cors)
         .with_state(state)

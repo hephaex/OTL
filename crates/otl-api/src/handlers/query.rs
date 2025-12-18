@@ -13,7 +13,8 @@ use axum::{
     },
     Json,
 };
-use futures::stream::{self, Stream};
+use futures::stream::{self, Stream, StreamExt};
+use otl_core::RagQuery;
 use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
 use std::sync::Arc;
@@ -114,14 +115,46 @@ pub async fn query_handler(
         return Err(AppError::BadRequest("Question cannot be empty".to_string()));
     }
 
-    // TODO: Implement actual RAG query using otl-rag
-    // For now, return mock response
+    // Try to use actual RAG orchestrator if available
+    if let Some(rag) = state.get_rag().await {
+        let user = state.get_default_user(req.user_id.as_deref());
+        let rag_query = RagQuery::new(&req.question).with_top_k(req.top_k);
+
+        match rag.query(&rag_query, &user).await {
+            Ok(rag_response) => {
+                let response = QueryResponse {
+                    answer: rag_response.answer,
+                    citations: rag_response
+                        .citations
+                        .into_iter()
+                        .map(|c| Citation {
+                            source: c.document_title,
+                            page: c.source.page,
+                            section: c.source.section,
+                            relevance: c.source.confidence,
+                        })
+                        .collect(),
+                    confidence: rag_response.confidence,
+                    processing_time_ms: rag_response.processing_time_ms,
+                };
+                return Ok((StatusCode::OK, Json(response)));
+            }
+            Err(e) => {
+                tracing::error!("RAG query failed: {}", e);
+                return Err(AppError::Internal(format!("RAG query failed: {}", e)));
+            }
+        }
+    }
+
+    // Fallback to mock response when RAG is not initialized
+    tracing::warn!("RAG not initialized, returning mock response");
     let response = QueryResponse {
         answer: format!(
             "귀하의 질문 \"{}\"에 대한 답변입니다.\n\n\
              연차휴가 신청은 사내 인사시스템을 통해 진행됩니다. \
              팀장 승인 후 인사팀에서 최종 처리됩니다.\n\n\
-             [출처: 인사규정 제15조]",
+             [출처: 인사규정 제15조]\n\n\
+             (주의: RAG 시스템이 초기화되지 않아 Mock 응답입니다)",
             req.question
         ),
         citations: vec![
@@ -166,15 +199,40 @@ pub async fn query_stream_handler(
         return Err(AppError::BadRequest("Question cannot be empty".to_string()));
     }
 
-    // Mock streaming response
-    let chunks = vec![
-        "연차휴가 신청은 ",
-        "사내 인사시스템을 ",
-        "통해 진행됩니다. ",
-        "팀장 승인 후 ",
-        "인사팀에서 ",
-        "최종 처리됩니다.",
-    ];
+    // Collect chunks to stream (either from LLM or mock)
+    let chunks: Vec<String> = if let Some(llm) = state.llm_client.read().await.clone() {
+        // Build a simple prompt for streaming
+        let prompt = format!(
+            "당신은 조직의 지식 전문가입니다.\n\
+             질문에 대해 간결하고 정확하게 답변하세요.\n\n\
+             질문: {}\n\n답변:",
+            req.question
+        );
+
+        match llm.generate_stream(&prompt).await {
+            Ok(mut llm_stream) => {
+                let mut collected = Vec::new();
+                while let Some(result) = llm_stream.next().await {
+                    match result {
+                        Ok(chunk) => collected.push(chunk),
+                        Err(e) => {
+                            tracing::error!("Stream chunk error: {}", e);
+                            collected.push("[스트리밍 오류]".to_string());
+                            break;
+                        }
+                    }
+                }
+                collected
+            }
+            Err(e) => {
+                tracing::error!("LLM stream failed: {}", e);
+                get_mock_chunks()
+            }
+        }
+    } else {
+        tracing::warn!("LLM not initialized, returning mock streaming response");
+        get_mock_chunks()
+    };
 
     let stream = stream::iter(chunks.into_iter().enumerate().map(|(i, chunk)| {
         Ok(Event::default()
@@ -188,4 +246,17 @@ pub async fn query_stream_handler(
             .interval(Duration::from_secs(15))
             .text("keep-alive"),
     ))
+}
+
+/// Get mock chunks for fallback streaming response
+fn get_mock_chunks() -> Vec<String> {
+    vec![
+        "연차휴가 신청은 ".to_string(),
+        "사내 인사시스템을 ".to_string(),
+        "통해 진행됩니다. ".to_string(),
+        "팀장 승인 후 ".to_string(),
+        "인사팀에서 ".to_string(),
+        "최종 처리됩니다. ".to_string(),
+        "(주의: LLM이 초기화되지 않아 Mock 응답입니다)".to_string(),
+    ]
 }

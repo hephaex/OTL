@@ -1,0 +1,43 @@
+# OTL API Service
+# Author: hephaex@gmail.com
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: otl-api
+  namespace: otl
+  labels:
+    app.kubernetes.io/name: otl
+    app.kubernetes.io/component: api
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: otl
+    app.kubernetes.io/component: api
+
+---
+# Headless service for direct pod access (useful for debugging)
+apiVersion: v1
+kind: Service
+metadata:
+  name: otl-api-headless
+  namespace: otl
+  labels:
+    app.kubernetes.io/name: otl
+    app.kubernetes.io/component: api
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: otl
+    app.kubernetes.io/component: api

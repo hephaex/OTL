@@ -1,0 +1,41 @@
+# OTL Kustomization
+# Author: hephaex@gmail.com
+#
+# Usage:
+#   kubectl apply -k k8s/
+#
+# Or for specific environments:
+#   kubectl apply -k k8s/overlays/production/
+---
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: otl
+
+# Common labels applied to all resources
+commonLabels:
+  app.kubernetes.io/part-of: otl
+  app.kubernetes.io/managed-by: kustomize
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secret.yaml
+  - deployment.yaml
+  - service.yaml
+  - hpa.yaml
+  # Infrastructure (databases)
+  - infrastructure.yaml
+  # Optional: Ingress (uncomment if using NGINX Ingress)
+  # - ingress.yaml
+
+# Image configuration (can be overridden in overlays)
+images:
+  - name: ghcr.io/hephaex/otl-api
+    newTag: latest
+
+# ConfigMap generator (alternative to static configmap.yaml)
+# configMapGenerator:
+#   - name: otl-config
+#     envs:
+#       - .env
