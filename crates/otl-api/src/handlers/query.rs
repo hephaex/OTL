@@ -178,7 +178,7 @@ pub async fn query_handler(
     Ok((StatusCode::OK, Json(response)))
 }
 
-/// Handle streaming RAG query requests
+/// Handle streaming RAG query requests with true streaming
 #[utoipa::path(
     post,
     path = "/api/v1/query/stream",
@@ -193,13 +193,15 @@ pub async fn query_stream_handler(
     State(state): State<Arc<AppState>>,
     Json(req): Json<QueryRequest>,
 ) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, AppError> {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
     state.increment_requests();
 
     if req.question.trim().is_empty() {
         return Err(AppError::BadRequest("Question cannot be empty".to_string()));
     }
 
-    // First, search for relevant context from vector store
+    // First, search for relevant context from vector store (this part must complete before streaming)
     let context = if let Some(vector_store) = state.vector_store.read().await.clone() {
         match vector_store.search(&req.question, req.top_k).await {
             Ok(results) => {
@@ -225,64 +227,83 @@ pub async fn query_stream_handler(
         String::new()
     };
 
-    // Collect chunks to stream (either from LLM or mock)
-    let chunks: Vec<String> = if let Some(llm) = state.llm_client.read().await.clone() {
-        // Build prompt with retrieved context
-        let prompt = if context.is_empty() {
-            format!(
-                "당신은 조직의 지식 전문가입니다.\n\
-                 질문에 대해 간결하고 정확하게 답변하세요.\n\n\
-                 질문: {}\n\n답변:",
-                req.question
-            )
-        } else {
-            format!(
-                "당신은 조직의 지식 전문가입니다.\n\
-                 아래 제공된 문서를 참고하여 질문에 답변하세요.\n\
-                 문서에 없는 내용은 추측하지 마세요.\n\n\
-                 === 참고 문서 ===\n{}\n\n\
-                 === 질문 ===\n{}\n\n답변:",
-                context, req.question
-            )
-        };
-
-        match llm.generate_stream(&prompt).await {
-            Ok(mut llm_stream) => {
-                let mut collected = Vec::new();
-                while let Some(result) = llm_stream.next().await {
-                    match result {
-                        Ok(chunk) => collected.push(chunk),
-                        Err(e) => {
-                            tracing::error!("Stream chunk error: {}", e);
-                            collected.push("[스트리밍 오류]".to_string());
-                            break;
-                        }
-                    }
-                }
-                collected
-            }
-            Err(e) => {
-                tracing::error!("LLM stream failed: {}", e);
-                get_mock_chunks()
-            }
-        }
+    // Build the prompt
+    let prompt = if context.is_empty() {
+        format!(
+            "당신은 조직의 지식 전문가입니다.\n\
+             질문에 대해 간결하고 정확하게 답변하세요.\n\n\
+             질문: {}\n\n답변:",
+            req.question
+        )
     } else {
-        tracing::warn!("LLM not initialized, returning mock streaming response");
-        get_mock_chunks()
+        format!(
+            "당신은 조직의 지식 전문가입니다.\n\
+             아래 제공된 문서를 참고하여 질문에 답변하세요.\n\
+             문서에 없는 내용은 추측하지 마세요.\n\n\
+             === 참고 문서 ===\n{}\n\n\
+             === 질문 ===\n{}\n\n답변:",
+            context, req.question
+        )
     };
 
-    let stream = stream::iter(chunks.into_iter().enumerate().map(|(i, chunk)| {
-        Ok(Event::default()
-            .data(chunk)
-            .id(i.to_string())
-            .event("message"))
-    }));
+    // Get LLM client
+    let llm_client = state.llm_client.read().await.clone();
+
+    // Create a true streaming SSE response
+    let stream: std::pin::Pin<Box<dyn Stream<Item = Result<Event, Infallible>> + Send>> =
+        if let Some(llm) = llm_client {
+            match llm.generate_stream(&prompt).await {
+                Ok(llm_stream) => {
+                    // Use atomic counter for event IDs
+                    let counter = Arc::new(AtomicUsize::new(0));
+
+                    // Transform LLM stream directly to SSE events without buffering
+                    let sse_stream = llm_stream.map(move |result| {
+                        let id = counter.fetch_add(1, Ordering::SeqCst);
+                        match result {
+                            Ok(chunk) => Ok(Event::default()
+                                .data(chunk)
+                                .id(id.to_string())
+                                .event("message")),
+                            Err(e) => {
+                                tracing::error!("Stream chunk error: {}", e);
+                                Ok(Event::default()
+                                    .data("[스트리밍 오류]")
+                                    .id(id.to_string())
+                                    .event("error"))
+                            }
+                        }
+                    });
+
+                    Box::pin(sse_stream)
+                }
+                Err(e) => {
+                    tracing::error!("LLM stream failed: {}", e);
+                    // Fallback to mock streaming
+                    Box::pin(create_mock_stream())
+                }
+            }
+        } else {
+            tracing::warn!("LLM not initialized, returning mock streaming response");
+            Box::pin(create_mock_stream())
+        };
 
     Ok(Sse::new(stream).keep_alive(
         axum::response::sse::KeepAlive::new()
             .interval(Duration::from_secs(15))
             .text("keep-alive"),
     ))
+}
+
+/// Create a mock streaming response for fallback
+fn create_mock_stream() -> impl Stream<Item = Result<Event, Infallible>> {
+    let chunks = get_mock_chunks();
+    stream::iter(chunks.into_iter().enumerate().map(|(i, chunk)| {
+        Ok(Event::default()
+            .data(chunk)
+            .id(i.to_string())
+            .event("message"))
+    }))
 }
 
 /// Get mock chunks for fallback streaming response
