@@ -10,7 +10,7 @@ services:
   # SurrealDB - Graph + Document Database
   # ==========================================================================
   surrealdb:
-    image: surrealdb/surrealdb:v2.0.4
+    image: surrealdb/surrealdb:v2.4.0
     container_name: otl-surrealdb
     user: root
     command: start --log trace --user root --pass root surrealkv:/data/srdb.db
@@ -52,7 +52,7 @@ services:
     image: postgres:16-alpine
     container_name: otl-postgres
     ports:
-      - "5432:5432"
+      - "5433:5432"  # Changed to avoid port conflict with casterhub-postgres
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql
@@ -86,7 +86,41 @@ services:
       retries: 5
 
   # ==========================================================================
-  # Ollama - Local LLM (Optional, for offline development)
+  # vLLM - High Performance LLM Inference Server
+  # ==========================================================================
+  vllm:
+    image: vllm/vllm-openai:latest
+    container_name: otl-vllm
+    ports:
+      - "8080:8000"  # OpenAI-compatible API
+    volumes:
+      - vllm_cache:/root/.cache/huggingface
+    environment:
+      - HUGGING_FACE_HUB_TOKEN=${HUGGING_FACE_HUB_TOKEN:-}
+    command: >
+      --model Qwen/Qwen2.5-7B-Instruct
+      --served-model-name qwen2.5-7b
+      --max-model-len 8192
+      --trust-remote-code
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 30s
+      timeout: 30s
+      retries: 5
+      start_period: 120s
+    profiles:
+      - vllm  # Only start with --profile vllm (requires NVIDIA GPU)
+    # GPU is required for vLLM - use docker-compose.gpu.yml
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  # ==========================================================================
+  # Ollama - Local LLM (Default, supports Metal on macOS)
   # ==========================================================================
   ollama:
     image: ollama/ollama:latest
@@ -116,6 +150,7 @@ volumes:
   postgres_data:
   meilisearch_data:
   ollama_data:
+  vllm_cache:
 
 networks:
   default:

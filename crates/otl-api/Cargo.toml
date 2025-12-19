@@ -14,6 +14,8 @@ path = "src/main.rs"
 [dependencies]
 otl-core = { path = "../otl-core" }
 otl-rag = { path = "../otl-rag" }
+otl-vector = { path = "../otl-vector" }
+otl-graph = { path = "../otl-graph" }
 axum = { workspace = true }
 tokio = { workspace = true }
 tower = { workspace = true }

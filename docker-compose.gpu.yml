@@ -17,6 +17,17 @@
 #   sudo systemctl restart docker
 
 services:
+  vllm:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+
   ollama:
     deploy:
       resources:

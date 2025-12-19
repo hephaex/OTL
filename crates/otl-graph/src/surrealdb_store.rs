@@ -19,7 +19,13 @@ pub struct SurrealDbStore {
 impl SurrealDbStore {
     /// Create a new SurrealDB connection
     pub async fn new(config: &DatabaseConfig) -> Result<Self> {
-        let client = Surreal::new::<Ws>(&config.surrealdb_url)
+        // Remove ws:// or wss:// prefix if present (surrealdb crate adds it automatically)
+        let url = config.surrealdb_url
+            .strip_prefix("ws://")
+            .or_else(|| config.surrealdb_url.strip_prefix("wss://"))
+            .unwrap_or(&config.surrealdb_url);
+
+        let client = Surreal::new::<Ws>(url)
             .await
             .map_err(|e| OtlError::DatabaseError(format!("SurrealDB connection failed: {e}")))?;
 
