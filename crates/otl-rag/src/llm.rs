@@ -319,24 +319,44 @@ impl LlmClient for OllamaClient {
 
         let stream = response.bytes_stream();
 
-        let mapped_stream = stream.filter_map(|result| async move {
-            match result {
+        // Use a stateful stream to handle partial JSON lines across chunks
+        let mapped_stream = stream.scan(String::new(), |buffer, result| {
+            let output: Option<Result<String>> = match result {
                 Ok(bytes) => {
                     let text = String::from_utf8_lossy(&bytes);
+                    buffer.push_str(&text);
+
                     // Ollama streams JSON objects, one per line
-                    if let Ok(parsed) = serde_json::from_str::<OllamaResponse>(&text) {
-                        if parsed.response.is_empty() {
-                            None
-                        } else {
-                            Some(Ok(parsed.response))
+                    // Process all complete lines in the buffer
+                    let mut collected = String::new();
+
+                    // Split buffer by newlines and process complete lines
+                    while let Some(newline_pos) = buffer.find('\n') {
+                        let line = buffer.drain(..=newline_pos).collect::<String>();
+                        let line = line.trim();
+
+                        if line.is_empty() {
+                            continue;
                         }
-                    } else {
+
+                        if let Ok(parsed) = serde_json::from_str::<OllamaResponse>(line) {
+                            if !parsed.response.is_empty() {
+                                collected.push_str(&parsed.response);
+                            }
+                        }
+                    }
+
+                    if collected.is_empty() {
                         None
+                    } else {
+                        Some(Ok(collected))
                     }
                 }
                 Err(e) => Some(Err(OtlError::LlmError(format!("Stream error: {e}")))),
-            }
-        });
+            };
+            async move { Some(output) }
+        })
+        .filter_map(|x| async move { x });
 
         Ok(Box::pin(mapped_stream))
     }

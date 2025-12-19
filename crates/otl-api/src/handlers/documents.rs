@@ -242,14 +242,32 @@ pub async fn upload_document(
         .decode(&req.content)
         .map_err(|e| AppError::BadRequest(format!("Invalid base64 content: {e}")))?;
 
-    // Convert to UTF-8 string
-    let text_content = String::from_utf8(decoded_bytes)
-        .map_err(|e| AppError::BadRequest(format!("Content is not valid UTF-8: {e}")))?;
+    // Extract text content based on file type
+    let text_content = match req.file_type.to_lowercase().as_str() {
+        "pdf" => {
+            // Use PDF parser to extract text
+            extract_text_from_pdf(&decoded_bytes).map_err(|e| {
+                AppError::BadRequest(format!("Failed to extract text from PDF: {e}"))
+            })?
+        }
+        "docx" => {
+            // Use DOCX parser to extract text
+            extract_text_from_docx(&decoded_bytes).map_err(|e| {
+                AppError::BadRequest(format!("Failed to extract text from DOCX: {e}"))
+            })?
+        }
+        _ => {
+            // Assume plain text (txt, md, etc.)
+            String::from_utf8(decoded_bytes)
+                .map_err(|e| AppError::BadRequest(format!("Content is not valid UTF-8: {e}")))?
+        }
+    };
 
     tracing::info!(
-        "Processing document upload: {} (id: {}, size: {} bytes)",
+        "Processing document upload: {} (id: {}, type: {}, size: {} bytes)",
         req.title,
         doc_id,
+        req.file_type,
         text_content.len()
     );
 
@@ -462,4 +480,42 @@ pub async fn delete_document(
             message: format!("Document {id} deleted"),
         }),
     ))
+}
+
+// ============================================================================
+// Document Format Extractors
+// ============================================================================
+
+/// Extract text from PDF bytes using pdf-extract library
+fn extract_text_from_pdf(bytes: &[u8]) -> Result<String, String> {
+    pdf_extract::extract_text_from_mem(bytes).map_err(|e| e.to_string())
+}
+
+/// Extract text from DOCX bytes
+fn extract_text_from_docx(bytes: &[u8]) -> Result<String, String> {
+    // Parse the DOCX file directly from bytes
+    let docx = docx_rs::read_docx(bytes).map_err(|e| format!("Failed to parse DOCX: {e}"))?;
+
+    // Extract text from all paragraphs
+    let mut text = String::new();
+    for child in docx.document.children {
+        if let docx_rs::DocumentChild::Paragraph(para) = child {
+            for child in para.children {
+                if let docx_rs::ParagraphChild::Run(run) = child {
+                    for child in run.children {
+                        if let docx_rs::RunChild::Text(t) = child {
+                            text.push_str(&t.text);
+                        }
+                    }
+                }
+            }
+            text.push('\n');
+        }
+    }
+
+    if text.is_empty() {
+        return Err("No text content found in DOCX".to_string());
+    }
+
+    Ok(text)
 }

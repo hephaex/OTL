@@ -33,3 +33,5 @@ utoipa-swagger-ui = { workspace = true }
 jsonwebtoken = "9"
 futures = { workspace = true }
 base64 = "0.22"
+pdf-extract = { workspace = true }
+docx-rs = { workspace = true }
