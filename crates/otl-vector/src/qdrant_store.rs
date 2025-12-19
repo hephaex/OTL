@@ -217,7 +217,9 @@ impl VectorSearchBackend {
         config: &DatabaseConfig,
         embedding_client: Arc<dyn EmbeddingClient>,
     ) -> Result<Self> {
-        let store = QdrantStore::new(config).await?;
+        let mut store = QdrantStore::new(config).await?;
+        // Override dimension with actual embedding client dimension
+        store.dimension = embedding_client.dimension();
         Ok(Self::new(store, embedding_client))
     }
 

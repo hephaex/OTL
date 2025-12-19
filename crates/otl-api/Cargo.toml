@@ -16,6 +16,7 @@ otl-core = { path = "../otl-core" }
 otl-rag = { path = "../otl-rag" }
 otl-vector = { path = "../otl-vector" }
 otl-graph = { path = "../otl-graph" }
+otl-parser = { path = "../otl-parser" }
 axum = { workspace = true }
 tokio = { workspace = true }
 tower = { workspace = true }
@@ -31,3 +32,4 @@ utoipa = { workspace = true }
 utoipa-swagger-ui = { workspace = true }
 jsonwebtoken = "9"
 futures = { workspace = true }
+base64 = "0.22"

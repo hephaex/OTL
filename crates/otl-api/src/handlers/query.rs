@@ -141,7 +141,7 @@ pub async fn query_handler(
             }
             Err(e) => {
                 tracing::error!("RAG query failed: {}", e);
-                return Err(AppError::Internal(format!("RAG query failed: {}", e)));
+                return Err(AppError::Internal(format!("RAG query failed: {e}")));
             }
         }
     }
@@ -199,15 +199,52 @@ pub async fn query_stream_handler(
         return Err(AppError::BadRequest("Question cannot be empty".to_string()));
     }
 
+    // First, search for relevant context from vector store
+    let context = if let Some(vector_store) = state.vector_store.read().await.clone() {
+        match vector_store.search(&req.question, req.top_k).await {
+            Ok(results) => {
+                if results.is_empty() {
+                    tracing::info!("No relevant documents found for query");
+                    String::new()
+                } else {
+                    tracing::info!("Found {} relevant documents", results.len());
+                    results
+                        .iter()
+                        .enumerate()
+                        .map(|(i, r)| format!("[문서 {}] {}", i + 1, r.content))
+                        .collect::<Vec<_>>()
+                        .join("\n\n")
+                }
+            }
+            Err(e) => {
+                tracing::warn!("Vector search failed: {}", e);
+                String::new()
+            }
+        }
+    } else {
+        String::new()
+    };
+
     // Collect chunks to stream (either from LLM or mock)
     let chunks: Vec<String> = if let Some(llm) = state.llm_client.read().await.clone() {
-        // Build a simple prompt for streaming
-        let prompt = format!(
-            "당신은 조직의 지식 전문가입니다.\n\
-             질문에 대해 간결하고 정확하게 답변하세요.\n\n\
-             질문: {}\n\n답변:",
-            req.question
-        );
+        // Build prompt with retrieved context
+        let prompt = if context.is_empty() {
+            format!(
+                "당신은 조직의 지식 전문가입니다.\n\
+                 질문에 대해 간결하고 정확하게 답변하세요.\n\n\
+                 질문: {}\n\n답변:",
+                req.question
+            )
+        } else {
+            format!(
+                "당신은 조직의 지식 전문가입니다.\n\
+                 아래 제공된 문서를 참고하여 질문에 답변하세요.\n\
+                 문서에 없는 내용은 추측하지 마세요.\n\n\
+                 === 참고 문서 ===\n{}\n\n\
+                 === 질문 ===\n{}\n\n답변:",
+                context, req.question
+            )
+        };
 
         match llm.generate_stream(&prompt).await {
             Ok(mut llm_stream) => {

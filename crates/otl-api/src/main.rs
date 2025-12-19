@@ -79,7 +79,12 @@ async fn main() -> anyhow::Result<()> {
                 } else {
                     tracing::info!("Vector store (Qdrant) initialized");
                 }
-                Some(Arc::new(store) as Arc<dyn otl_core::SearchBackend>)
+                let store_arc = Arc::new(store);
+
+                // Set the concrete backend for document indexing
+                state.set_vector_backend(store_arc.clone()).await;
+
+                Some(store_arc as Arc<dyn otl_core::SearchBackend>)
             }
             Err(e) => {
                 tracing::warn!("Failed to connect to Qdrant: {}", e);

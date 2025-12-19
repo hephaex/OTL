@@ -5,6 +5,7 @@
 use otl_core::config::AppConfig;
 use otl_core::{LlmClient, SearchBackend, User};
 use otl_rag::{HybridRagOrchestrator, RagConfig as OtlRagConfig};
+use otl_vector::VectorSearchBackend;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
@@ -24,6 +25,8 @@ pub struct AppState {
     pub rag: RwLock<Option<Arc<HybridRagOrchestrator>>>,
     /// Vector search backend
     pub vector_store: RwLock<Option<Arc<dyn SearchBackend>>>,
+    /// Vector search backend (concrete type for indexing)
+    pub vector_backend: RwLock<Option<Arc<VectorSearchBackend>>>,
     /// Graph search backend
     pub graph_store: RwLock<Option<Arc<dyn SearchBackend>>>,
     /// LLM client
@@ -40,6 +43,7 @@ impl AppState {
             is_ready: AtomicBool::new(true),
             rag: RwLock::new(None),
             vector_store: RwLock::new(None),
+            vector_backend: RwLock::new(None),
             graph_store: RwLock::new(None),
             llm_client: RwLock::new(None),
         }
@@ -89,6 +93,11 @@ impl AppState {
         *self.graph_store.write().await = Some(graph_store);
         *self.llm_client.write().await = Some(llm_client);
         *self.rag.write().await = Some(Arc::new(orchestrator));
+    }
+
+    /// Set the vector backend (concrete type) for document indexing
+    pub async fn set_vector_backend(&self, backend: Arc<VectorSearchBackend>) {
+        *self.vector_backend.write().await = Some(backend);
     }
 
     /// Get RAG orchestrator if initialized

@@ -75,6 +75,9 @@ impl AppConfig {
         if let Ok(model) = std::env::var("LLM_MODEL") {
             config.llm.model = model;
         }
+        if let Ok(model) = std::env::var("EMBEDDING_MODEL") {
+            config.llm.embedding_model = model;
+        }
 
         // Logging
         if let Ok(level) = std::env::var("LOG_LEVEL") {
