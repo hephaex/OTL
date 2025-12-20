@@ -11,6 +11,7 @@ repository.workspace = true
 otl-core = { path = "../otl-core" }
 
 tokio = { workspace = true }
+tokio-util = { version = "0.7", features = ["codec", "io"] }
 async-trait = { workspace = true }
 futures = { workspace = true }
 serde = { workspace = true }

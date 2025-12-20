@@ -35,7 +35,8 @@ impl GraphSearchBackend {
     /// Create a new graph search backend
     pub async fn new(config: &DatabaseConfig) -> Result<Self> {
         // Remove ws:// or wss:// prefix if present (surrealdb crate adds it automatically)
-        let url = config.surrealdb_url
+        let url = config
+            .surrealdb_url
             .strip_prefix("ws://")
             .or_else(|| config.surrealdb_url.strip_prefix("wss://"))
             .unwrap_or(&config.surrealdb_url);
@@ -109,7 +110,11 @@ impl GraphSearchBackend {
     }
 
     /// Get related entities via graph traversal
-    async fn get_related_entities(&self, entity_ids: &[String], depth: u32) -> Result<Vec<GraphNode>> {
+    async fn get_related_entities(
+        &self,
+        entity_ids: &[String],
+        depth: u32,
+    ) -> Result<Vec<GraphNode>> {
         if entity_ids.is_empty() {
             return Ok(Vec::new());
         }
@@ -269,10 +274,7 @@ impl GraphSearchBackend {
 impl SearchBackend for GraphSearchBackend {
     async fn search(&self, query: &str, limit: usize) -> Result<Vec<SearchResult>> {
         // Extract keywords from query
-        let keywords: Vec<&str> = query
-            .split_whitespace()
-            .filter(|w| w.len() > 1)
-            .collect();
+        let keywords: Vec<&str> = query.split_whitespace().filter(|w| w.len() > 1).collect();
 
         if keywords.is_empty() {
             return Ok(Vec::new());
@@ -289,7 +291,9 @@ impl SearchBackend for GraphSearchBackend {
         let entity_ids: Vec<String> = initial_nodes.iter().map(|n| n.id.clone()).collect();
 
         // Get related entities via graph traversal
-        let related_nodes = self.get_related_entities(&entity_ids, self.max_depth).await?;
+        let related_nodes = self
+            .get_related_entities(&entity_ids, self.max_depth)
+            .await?;
 
         // Get relationships
         let all_ids: Vec<String> = initial_nodes
@@ -349,10 +353,7 @@ struct SourceRecord {
 
 impl From<GraphNodeRecord> for GraphNode {
     fn from(record: GraphNodeRecord) -> Self {
-        let id = record
-            .id
-            .map(|t| t.id.to_string())
-            .unwrap_or_default();
+        let id = record.id.map(|t| t.id.to_string()).unwrap_or_default();
 
         let text = record
             .properties

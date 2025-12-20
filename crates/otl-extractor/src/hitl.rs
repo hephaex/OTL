@@ -353,7 +353,8 @@ impl VerificationStats {
 
     /// Relation approval rate
     pub fn relation_approval_rate(&self) -> f32 {
-        let total = self.approved_relations + self.auto_approved_relations + self.rejected_relations;
+        let total =
+            self.approved_relations + self.auto_approved_relations + self.rejected_relations;
         if total == 0 {
             0.0
         } else {

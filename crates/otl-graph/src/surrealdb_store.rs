@@ -20,7 +20,8 @@ impl SurrealDbStore {
     /// Create a new SurrealDB connection
     pub async fn new(config: &DatabaseConfig) -> Result<Self> {
         // Remove ws:// or wss:// prefix if present (surrealdb crate adds it automatically)
-        let url = config.surrealdb_url
+        let url = config
+            .surrealdb_url
             .strip_prefix("ws://")
             .or_else(|| config.surrealdb_url.strip_prefix("wss://"))
             .unwrap_or(&config.surrealdb_url);

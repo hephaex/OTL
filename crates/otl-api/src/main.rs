@@ -108,7 +108,11 @@ async fn main() -> anyhow::Result<()> {
     };
 
     // 5. Initialize full RAG pipeline if all components are available
-    if let (Some(llm), Some(vs), Some(gs)) = (llm_client.clone(), vector_store.clone(), graph_store.clone()) {
+    if let (Some(llm), Some(vs), Some(gs)) = (
+        llm_client.clone(),
+        vector_store.clone(),
+        graph_store.clone(),
+    ) {
         state.initialize_rag(vs, gs, llm).await;
         rag_initialized = true;
         tracing::info!("RAG pipeline fully initialized");

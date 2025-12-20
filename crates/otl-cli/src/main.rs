@@ -131,10 +131,19 @@ async fn main() -> anyhow::Result<()> {
             println!("Ingesting documents from: {path}");
             // TODO: Implement ingestion
         }
-        Commands::Query { question, stream, ollama, model } => {
+        Commands::Query {
+            question,
+            stream,
+            ollama,
+            model,
+        } => {
             cmd_query(&question, stream, ollama, model.as_deref()).await?;
         }
-        Commands::Extract { input, entities_only, relations_only } => {
+        Commands::Extract {
+            input,
+            entities_only,
+            relations_only,
+        } => {
             cmd_extract(&input, entities_only, relations_only)?;
         }
         Commands::Verify { action } => match action {
@@ -178,11 +187,7 @@ fn cmd_extract(input: &str, entities_only: bool, relations_only: bool) -> anyhow
             for entity in &entities {
                 println!(
                     "  [{:.2}] {}: \"{}\" @ {}..{}",
-                    entity.confidence,
-                    entity.entity_type,
-                    entity.text,
-                    entity.start,
-                    entity.end
+                    entity.confidence, entity.entity_type, entity.text, entity.start, entity.end
                 );
             }
         }
@@ -270,7 +275,10 @@ fn cmd_verify_show(id: &str) -> anyhow::Result<()> {
         println!("  Document:   {}", entity.document_id);
         println!("  Text:       \"{}\"", entity.entity.text);
         println!("  Type:       {}", entity.entity.entity_type);
-        println!("  Position:   {}..{}", entity.entity.start, entity.entity.end);
+        println!(
+            "  Position:   {}..{}",
+            entity.entity.start, entity.entity.end
+        );
         println!("  Confidence: {:.2}", entity.entity.confidence);
         println!("  Status:     {}", entity.status);
         println!("  Created:    {}", entity.created_at);
@@ -359,7 +367,10 @@ fn cmd_verify_stats() -> anyhow::Result<()> {
     println!("    Auto-approved: {}", stats.auto_approved_entities);
     println!("    Rejected:      {}", stats.rejected_entities);
     println!("    Total:         {}", stats.total_entities());
-    println!("    Approval rate: {:.1}%", stats.entity_approval_rate() * 100.0);
+    println!(
+        "    Approval rate: {:.1}%",
+        stats.entity_approval_rate() * 100.0
+    );
 
     println!("\n  Relations:");
     println!("    Pending:       {}", stats.pending_relations);
@@ -367,7 +378,10 @@ fn cmd_verify_stats() -> anyhow::Result<()> {
     println!("    Auto-approved: {}", stats.auto_approved_relations);
     println!("    Rejected:      {}", stats.rejected_relations);
     println!("    Total:         {}", stats.total_relations());
-    println!("    Approval rate: {:.1}%", stats.relation_approval_rate() * 100.0);
+    println!(
+        "    Approval rate: {:.1}%",
+        stats.relation_approval_rate() * 100.0
+    );
 
     Ok(())
 }
@@ -378,7 +392,8 @@ fn cmd_verify_demo() -> anyhow::Result<()> {
     let doc_id = Uuid::new_v4();
 
     // Sample HR text for extraction
-    let sample_text = "연차휴가는 최대 15일까지 사용할 수 있습니다. 병가 신청에는 진단서가 필요합니다.
+    let sample_text =
+        "연차휴가는 최대 15일까지 사용할 수 있습니다. 병가 신청에는 진단서가 필요합니다.
 육아휴직은 최대 2년간 사용 가능합니다. 팀장 승인 후 인사팀에서 최종 결재합니다.";
 
     let ner = RuleBasedNer::new();

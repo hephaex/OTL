@@ -149,7 +149,7 @@ impl Default for ServerConfig {
         Self {
             host: "0.0.0.0".to_string(),
             port: 8080,
-            request_timeout_secs: 30,
+            request_timeout_secs: 300,
             max_body_size: 10 * 1024 * 1024, // 10MB
             cors_enabled: true,
             cors_origins: vec!["*".to_string()],

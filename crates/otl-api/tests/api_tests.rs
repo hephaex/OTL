@@ -34,7 +34,12 @@ async fn test_health_check() {
     let app = create_router_default();
 
     let response = app
-        .oneshot(Request::builder().uri("/health").body(Body::empty()).unwrap())
+        .oneshot(
+            Request::builder()
+                .uri("/health")
+                .body(Body::empty())
+                .unwrap(),
+        )
         .await
         .unwrap();
 
@@ -54,7 +59,12 @@ async fn test_readiness_check() {
     let app = create_router_default();
 
     let response = app
-        .oneshot(Request::builder().uri("/ready").body(Body::empty()).unwrap())
+        .oneshot(
+            Request::builder()
+                .uri("/ready")
+                .body(Body::empty())
+                .unwrap(),
+        )
         .await
         .unwrap();
 

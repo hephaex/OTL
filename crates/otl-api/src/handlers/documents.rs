@@ -283,11 +283,7 @@ pub async fn upload_document(
     let chunks = chunk_text_simple(&text_content, &chunk_config);
     let chunk_count = chunks.len() as u32;
 
-    tracing::info!(
-        "Document {} split into {} chunks",
-        doc_id,
-        chunk_count
-    );
+    tracing::info!("Document {} split into {} chunks", doc_id, chunk_count);
 
     // Get vector backend and process chunks
     let vector_backend_guard = state.vector_backend.read().await;
@@ -299,10 +295,7 @@ pub async fn upload_document(
         // Process chunks and store embeddings
         let mut processed_count = 0;
         for (index, chunk_text) in chunks.iter().enumerate() {
-            match backend
-                .index_text(doc_id, index as u32, chunk_text)
-                .await
-            {
+            match backend.index_text(doc_id, index as u32, chunk_text).await {
                 Ok(vector_id) => {
                     processed_count += 1;
                     tracing::debug!(
@@ -408,7 +401,12 @@ fn find_char_boundary(text: &str, pos: usize) -> usize {
 }
 
 /// Find a good boundary for chunking (respecting sentence/paragraph boundaries)
-fn find_chunk_boundary(text: &str, _start: usize, target: usize, respect_paragraphs: bool) -> usize {
+fn find_chunk_boundary(
+    text: &str,
+    _start: usize,
+    target: usize,
+    respect_paragraphs: bool,
+) -> usize {
     if target >= text.len() {
         return text.len();
     }
@@ -421,7 +419,7 @@ fn find_chunk_boundary(text: &str, _start: usize, target: usize, respect_paragra
     }
 
     // Search window around target position (ensure boundaries are valid)
-    let search_start = find_char_boundary(text, if target > 100 { target - 100 } else { 0 });
+    let search_start = find_char_boundary(text, target.saturating_sub(100));
     let search_end = find_char_boundary(text, (target + 100).min(text.len()));
     let search_text = &text[search_start..search_end];
 

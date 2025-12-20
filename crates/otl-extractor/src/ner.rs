@@ -168,37 +168,73 @@ impl RuleBasedNer {
 
         // Grade patterns
         self.add_pattern(r"[1-9]급", EntityType::Grade, 0.85);
-        self.add_pattern(r"(사원|대리|과장|차장|부장|이사|상무|전무|부사장|사장)", EntityType::Position, 0.9);
+        self.add_pattern(
+            r"(사원|대리|과장|차장|부장|이사|상무|전무|부사장|사장)",
+            EntityType::Position,
+            0.9,
+        );
     }
 
     /// Initialize dictionary for HR domain terms
     fn init_hr_dictionary(&mut self) {
         // Leave types
-        self.add_term("연차", EntityType::AnnualLeave, vec!["연차휴가", "연가", "유급휴가"]);
+        self.add_term(
+            "연차",
+            EntityType::AnnualLeave,
+            vec!["연차휴가", "연가", "유급휴가"],
+        );
         self.add_term("병가", EntityType::SickLeave, vec!["병가휴가", "질병휴가"]);
-        self.add_term("육아휴직", EntityType::ParentalLeave, vec!["육아휴가", "출산휴가", "육휴"]);
-        self.add_term("경조휴가", EntityType::CongratulatoryLeave, vec!["경조사휴가", "경조"]);
+        self.add_term(
+            "육아휴직",
+            EntityType::ParentalLeave,
+            vec!["육아휴가", "출산휴가", "육휴"],
+        );
+        self.add_term(
+            "경조휴가",
+            EntityType::CongratulatoryLeave,
+            vec!["경조사휴가", "경조"],
+        );
         self.add_term("특별휴가", EntityType::LeaveType, vec!["특휴"]);
         self.add_term("공가", EntityType::LeaveType, vec!["공무휴가"]);
         self.add_term("대체휴가", EntityType::LeaveType, vec!["대휴"]);
 
         // Approval related
         self.add_term("승인", EntityType::ApprovalProcess, vec!["결재", "허가"]);
-        self.add_term("팀장승인", EntityType::ApprovalStep, vec!["팀장결재", "팀장허가"]);
+        self.add_term(
+            "팀장승인",
+            EntityType::ApprovalStep,
+            vec!["팀장결재", "팀장허가"],
+        );
         self.add_term("부서장승인", EntityType::ApprovalStep, vec!["부서장결재"]);
-        self.add_term("인사팀승인", EntityType::ApprovalStep, vec!["인사팀결재", "HR승인"]);
+        self.add_term(
+            "인사팀승인",
+            EntityType::ApprovalStep,
+            vec!["인사팀결재", "HR승인"],
+        );
 
         // Position/Role
         self.add_term("팀장", EntityType::Manager, vec!["TL", "팀리더"]);
         self.add_term("부서장", EntityType::Manager, vec!["본부장"]);
-        self.add_term("인사담당자", EntityType::HrStaff, vec!["HR담당", "인사담당"]);
+        self.add_term(
+            "인사담당자",
+            EntityType::HrStaff,
+            vec!["HR담당", "인사담당"],
+        );
 
         // Documents
         self.add_term("취업규칙", EntityType::Regulation, vec!["근로규칙"]);
         self.add_term("인사규정", EntityType::Regulation, vec!["인사규칙"]);
-        self.add_term("급여규정", EntityType::Regulation, vec!["임금규정", "보수규정"]);
+        self.add_term(
+            "급여규정",
+            EntityType::Regulation,
+            vec!["임금규정", "보수규정"],
+        );
         self.add_term("복리후생규정", EntityType::Regulation, vec!["복지규정"]);
-        self.add_term("진단서", EntityType::Document, vec!["의사소견서", "진료확인서"]);
+        self.add_term(
+            "진단서",
+            EntityType::Document,
+            vec!["의사소견서", "진료확인서"],
+        );
 
         // Expense types
         self.add_term("출장비", EntityType::Expense, vec!["출장경비", "여비"]);
@@ -401,7 +437,12 @@ impl LlmNer {
 
     /// Build the extraction prompt
     pub fn build_prompt(&self, text: &str) -> String {
-        let entity_types: Vec<&str> = self.config.entity_types.iter().map(|e| e.as_str()).collect();
+        let entity_types: Vec<&str> = self
+            .config
+            .entity_types
+            .iter()
+            .map(|e| e.as_str())
+            .collect();
 
         format!(
             "{}\n\nEntity types to extract: {}\n\nText:\n{}\n\nExtract entities in JSON format:",

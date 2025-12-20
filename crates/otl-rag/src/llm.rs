@@ -252,8 +252,16 @@ struct OllamaResponse {
 impl OllamaClient {
     /// Create a new Ollama client
     pub fn new(base_url: impl Into<String>, model: impl Into<String>) -> Self {
+        // Configure reqwest client with appropriate timeouts
+        let client = Client::builder()
+            .timeout(std::time::Duration::from_secs(300)) // 5 minutes total timeout
+            .connect_timeout(std::time::Duration::from_secs(10))
+            .pool_idle_timeout(std::time::Duration::from_secs(90))
+            .build()
+            .unwrap_or_else(|_| Client::new());
+
         Self {
-            client: Client::new(),
+            client,
             base_url: base_url.into(),
             model: model.into(),
         }
@@ -268,11 +276,15 @@ impl OllamaClient {
 #[async_trait]
 impl LlmClient for OllamaClient {
     async fn generate(&self, prompt: &str) -> Result<String> {
+        tracing::info!("Ollama generate: sending request to {}", self.base_url);
+
         let request = OllamaRequest {
             model: self.model.clone(),
             prompt: prompt.to_string(),
             stream: Some(false),
         };
+
+        tracing::debug!("Ollama generate: request prepared");
 
         let response = self
             .client
@@ -282,20 +294,34 @@ impl LlmClient for OllamaClient {
             .await
             .map_err(|e| OtlError::LlmError(format!("Ollama request failed: {e}")))?;
 
+        tracing::info!(
+            "Ollama generate: received response with status {}",
+            response.status()
+        );
+
         if !response.status().is_success() {
             let error_text = response.text().await.unwrap_or_default();
             return Err(OtlError::LlmError(format!("Ollama error: {error_text}")));
         }
+
+        tracing::debug!("Ollama generate: parsing JSON response");
 
         let result: OllamaResponse = response
             .json()
             .await
             .map_err(|e| OtlError::LlmError(format!("Failed to parse Ollama response: {e}")))?;
 
+        tracing::info!("Ollama generate: received {} chars", result.response.len());
+
         Ok(result.response)
     }
 
     async fn generate_stream(&self, prompt: &str) -> Result<BoxStream<'static, Result<String>>> {
+        use futures::stream::StreamExt;
+        use tokio_util::codec::{FramedRead, LinesCodec};
+
+        tracing::info!("Starting Ollama stream request to {}", self.base_url);
+
         let request = OllamaRequest {
             model: self.model.clone(),
             prompt: prompt.to_string(),
@@ -310,6 +336,8 @@ impl LlmClient for OllamaClient {
             .await
             .map_err(|e| OtlError::LlmError(format!("Ollama stream request failed: {e}")))?;
 
+        tracing::info!("Received response with status: {}", response.status());
+
         if !response.status().is_success() {
             let error_text = response.text().await.unwrap_or_default();
             return Err(OtlError::LlmError(format!(
@@ -317,46 +345,53 @@ impl LlmClient for OllamaClient {
             )));
         }
 
-        let stream = response.bytes_stream();
+        // Convert bytes stream into async reader
+        let stream_reader =
+            tokio_util::io::StreamReader::new(response.bytes_stream().map(|result| {
+                result.map_err(std::io::Error::other)
+            }));
 
-        // Use a stateful stream to handle partial JSON lines across chunks
-        let mapped_stream = stream.scan(String::new(), |buffer, result| {
-            let output: Option<Result<String>> = match result {
-                Ok(bytes) => {
-                    let text = String::from_utf8_lossy(&bytes);
-                    buffer.push_str(&text);
+        // Use LinesCodec to properly frame the stream by lines
+        let lines_stream = FramedRead::new(stream_reader, LinesCodec::new());
 
-                    // Ollama streams JSON objects, one per line
-                    // Process all complete lines in the buffer
-                    let mut collected = String::new();
+        // Process each line and extract the response field
+        let mapped_stream = lines_stream.filter_map(|result| async move {
+            match result {
+                Ok(line) => {
+                    if line.trim().is_empty() {
+                        return None;
+                    }
 
-                    // Split buffer by newlines and process complete lines
-                    while let Some(newline_pos) = buffer.find('\n') {
-                        let line = buffer.drain(..=newline_pos).collect::<String>();
-                        let line = line.trim();
+                    tracing::debug!(
+                        "Received line from Ollama: {}",
+                        &line[..line.len().min(100)]
+                    );
 
-                        if line.is_empty() {
-                            continue;
-                        }
-
-                        if let Ok(parsed) = serde_json::from_str::<OllamaResponse>(line) {
+                    match serde_json::from_str::<OllamaResponse>(&line) {
+                        Ok(parsed) => {
                             if !parsed.response.is_empty() {
-                                collected.push_str(&parsed.response);
+                                tracing::debug!("Parsed response chunk: {}", &parsed.response);
+                                Some(Ok(parsed.response))
+                            } else {
+                                None
                             }
                         }
-                    }
-
-                    if collected.is_empty() {
-                        None
-                    } else {
-                        Some(Ok(collected))
+                        Err(e) => {
+                            tracing::warn!(
+                                "Failed to parse Ollama response line: {} - {}",
+                                &line[..line.len().min(100)],
+                                e
+                            );
+                            None
+                        }
                     }
                 }
-                Err(e) => Some(Err(OtlError::LlmError(format!("Stream error: {e}")))),
-            };
-            async move { Some(output) }
-        })
-        .filter_map(|x| async move { x });
+                Err(e) => {
+                    tracing::error!("Stream error: {}", e);
+                    Some(Err(OtlError::LlmError(format!("Stream error: {e}"))))
+                }
+            }
+        });
 
         Ok(Box::pin(mapped_stream))
     }

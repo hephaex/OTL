@@ -204,47 +204,60 @@ impl HybridRagOrchestrator {
     pub async fn query(&self, query: &RagQuery, user: &User) -> Result<RagResponse> {
         let start_time = Instant::now();
 
+        tracing::info!("RAG query started");
+
         // 1. Analyze the question
         let analysis = self.analyze_query(&query.question).await?;
+        tracing::debug!("Query analyzed: intent={:?}", analysis.intent);
 
         // 2. Execute searches in parallel
+        tracing::debug!("Executing parallel searches");
         let (vector_results, graph_results, keyword_results) = tokio::join!(
             self.vector_store
                 .search(&query.question, self.config.vector_top_k),
             self.search_graph_context(&analysis),
             self.search_keywords(&analysis)
         );
+        tracing::debug!("Searches completed");
 
         // 3. Collect results
         let mut all_results = Vec::new();
 
         if let Ok(results) = vector_results {
+            tracing::debug!("Vector search returned {} results", results.len());
             all_results.extend(results);
         }
 
         if let Ok(results) = graph_results {
+            tracing::debug!("Graph search returned {} results", results.len());
             all_results.extend(results);
         }
 
         if let Ok(results) = keyword_results {
+            tracing::debug!("Keyword search returned {} results", results.len());
             all_results.extend(results);
         }
 
         // 4. ACL filtering
         let filtered_results = self.filter_by_acl(all_results, user);
+        tracing::debug!("ACL filtered to {} results", filtered_results.len());
 
         // 5. Merge and rank results using RRF
         let merged_results = self.merge_results(filtered_results);
+        tracing::debug!("Merged to {} results", merged_results.len());
 
         // 6. Take top-k
         let final_results: Vec<_> = merged_results
             .into_iter()
             .take(self.config.final_top_k)
             .collect();
+        tracing::debug!("Final top-k: {} results", final_results.len());
 
         // 7. Build prompt and generate response
         let prompt = self.build_prompt(&query.question, &final_results, &analysis);
+        tracing::info!("Calling LLM with prompt length: {} chars", prompt.len());
         let answer = self.llm_client.generate(&prompt).await?;
+        tracing::info!("LLM response received: {} chars", answer.len());
 
         // 8. Extract citations
         let citations = self.extract_citations(&answer, &final_results);
