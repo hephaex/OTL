@@ -79,6 +79,15 @@ impl AppConfig {
             config.llm.embedding_model = model;
         }
 
+        // CORS origins from environment variable (comma-separated)
+        if let Ok(origins) = std::env::var("CORS_ORIGINS") {
+            config.server.cors_origins = origins
+                .split(',')
+                .map(|s| s.trim().to_string())
+                .filter(|s| !s.is_empty())
+                .collect();
+        }
+
         // Logging
         if let Ok(level) = std::env::var("LOG_LEVEL") {
             config.logging.level = level;
@@ -152,7 +161,8 @@ impl Default for ServerConfig {
             request_timeout_secs: 300,
             max_body_size: 10 * 1024 * 1024, // 10MB
             cors_enabled: true,
-            cors_origins: vec!["*".to_string()],
+            // Empty by default for security - set via CORS_ORIGINS env var
+            cors_origins: vec![],
         }
     }
 }

@@ -269,9 +269,9 @@ async fn test_upload_document() {
         "POST",
         "/api/v1/documents",
         Some(json!({
-            "title": "테스트 문서.pdf",
+            "title": "테스트 문서.txt",
             "content": "dGVzdCBjb250ZW50",  // base64 encoded "test content"
-            "file_type": "pdf",
+            "file_type": "txt",  // Use txt to avoid magic bytes validation
             "access_level": "internal",
             "department": "인사팀"
         })),
@@ -300,7 +300,7 @@ async fn test_upload_document_empty_title() {
         Some(json!({
             "title": "",
             "content": "dGVzdCBjb250ZW50",
-            "file_type": "pdf"
+            "file_type": "txt"  // Use txt to avoid magic bytes validation
         })),
     );
 

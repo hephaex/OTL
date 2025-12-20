@@ -11,6 +11,7 @@ use axum::{
     Json,
 };
 use base64::Engine;
+use futures::stream::{self, StreamExt};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use utoipa::{IntoParams, ToSchema};
@@ -242,6 +243,38 @@ pub async fn upload_document(
         .decode(&req.content)
         .map_err(|e| AppError::BadRequest(format!("Invalid base64 content: {e}")))?;
 
+    // Validate file size (max 50MB)
+    const MAX_FILE_SIZE: usize = 50 * 1024 * 1024;
+    if decoded_bytes.len() > MAX_FILE_SIZE {
+        return Err(AppError::BadRequest(format!(
+            "File size exceeds maximum allowed size of 50MB (actual: {} bytes)",
+            decoded_bytes.len()
+        )));
+    }
+
+    // Validate magic bytes for file type
+    match req.file_type.to_lowercase().as_str() {
+        "pdf" => {
+            if !decoded_bytes.starts_with(b"%PDF-") {
+                return Err(AppError::BadRequest(
+                    "Invalid PDF file: magic bytes do not match".to_string(),
+                ));
+            }
+        }
+        "docx" => {
+            // DOCX files are ZIP archives starting with PK signature
+            if !decoded_bytes.starts_with(&[0x50, 0x4B, 0x03, 0x04]) {
+                return Err(AppError::BadRequest(
+                    "Invalid DOCX file: magic bytes do not match (expected ZIP signature)"
+                        .to_string(),
+                ));
+            }
+        }
+        _ => {
+            // For text files, no magic bytes validation needed
+        }
+    }
+
     // Extract text content based on file type
     let text_content = match req.file_type.to_lowercase().as_str() {
         "pdf" => {
@@ -292,10 +325,25 @@ pub async fn upload_document(
         let backend = vector_backend.clone();
         drop(vector_backend_guard); // Release lock before async operations
 
-        // Process chunks and store embeddings
+        // Process chunks in parallel using buffer_unordered for better performance
+        const PARALLEL_LIMIT: usize = 4;
+
+        let indexing_results: Vec<_> = stream::iter(chunks.into_iter().enumerate())
+            .map(|(index, chunk_text)| {
+                let backend = backend.clone();
+                async move {
+                    let result = backend.index_text(doc_id, index as u32, &chunk_text).await;
+                    (index, result)
+                }
+            })
+            .buffer_unordered(PARALLEL_LIMIT)
+            .collect()
+            .await;
+
+        // Process results and count successes
         let mut processed_count = 0;
-        for (index, chunk_text) in chunks.iter().enumerate() {
-            match backend.index_text(doc_id, index as u32, chunk_text).await {
+        for (index, result) in indexing_results {
+            match result {
                 Ok(vector_id) => {
                     processed_count += 1;
                     tracing::debug!(

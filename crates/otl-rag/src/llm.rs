@@ -78,8 +78,16 @@ impl OpenAiClient {
         max_tokens: u32,
         temperature: f32,
     ) -> Self {
+        // Configure reqwest client with appropriate timeouts for LLM operations
+        let client = Client::builder()
+            .timeout(std::time::Duration::from_secs(300)) // 5 minutes total timeout
+            .connect_timeout(std::time::Duration::from_secs(10))
+            .pool_idle_timeout(std::time::Duration::from_secs(90))
+            .build()
+            .unwrap_or_else(|_| Client::new());
+
         Self {
-            client: Client::new(),
+            client,
             api_key: api_key.into(),
             base_url: "https://api.openai.com/v1".to_string(),
             model: model.into(),
@@ -100,8 +108,16 @@ impl OpenAiClient {
             .clone()
             .unwrap_or_else(|| "https://api.openai.com/v1".to_string());
 
+        // Configure reqwest client with appropriate timeouts for LLM operations
+        let client = Client::builder()
+            .timeout(std::time::Duration::from_secs(300)) // 5 minutes total timeout
+            .connect_timeout(std::time::Duration::from_secs(10))
+            .pool_idle_timeout(std::time::Duration::from_secs(90))
+            .build()
+            .unwrap_or_else(|_| Client::new());
+
         Ok(Self {
-            client: Client::new(),
+            client,
             api_key: api_key.clone(),
             base_url,
             model: config.model.clone(),
@@ -352,7 +368,8 @@ impl LlmClient for OllamaClient {
             }));
 
         // Use LinesCodec to properly frame the stream by lines
-        let lines_stream = FramedRead::new(stream_reader, LinesCodec::new());
+        // Limit max line length to 64KB to prevent DoS attacks from malicious servers
+        let lines_stream = FramedRead::new(stream_reader, LinesCodec::new_with_max_length(64 * 1024));
 
         // Process each line and extract the response field
         let mapped_stream = lines_stream.filter_map(|result| async move {
