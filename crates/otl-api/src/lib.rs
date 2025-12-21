@@ -122,8 +122,5 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .with_state(state)
 }
 
-/// Create router with default state (for testing)
-pub fn create_router_default() -> Router {
-    let state = Arc::new(AppState::default());
-    create_router(state)
-}
+// NOTE: create_router_default() has been removed because AppState now requires
+// a database pool. For testing, create a test database and use AppState::new() directly.

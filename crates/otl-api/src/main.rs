@@ -6,10 +6,11 @@
 
 use otl_api::{create_router, state::AppState};
 use otl_core::config::AppConfig;
-use otl_graph::GraphSearchBackend;
+use otl_graph::{GraphSearchBackend, SurrealDbStore};
 use otl_rag::llm::create_llm_client;
 use otl_vector::embedding::create_embedding_client;
 use otl_vector::VectorSearchBackend;
+use sqlx::postgres::PgPoolOptions;
 use std::sync::Arc;
 
 #[tokio::main]
@@ -32,8 +33,20 @@ async fn main() -> anyhow::Result<()> {
 
     let addr = format!("{host}:{port}");
 
+    // Connect to PostgreSQL
+    let database_url = std::env::var("DATABASE_URL")
+        .unwrap_or_else(|_| "postgres://otl:otl_dev_password@localhost:5433/otl".to_string());
+
+    tracing::info!("Connecting to PostgreSQL...");
+    let db_pool = PgPoolOptions::new()
+        .max_connections(10)
+        .connect(&database_url)
+        .await?;
+
+    tracing::info!("PostgreSQL connected successfully");
+
     // Create application state
-    let state = Arc::new(AppState::new(config.clone()));
+    let state = Arc::new(AppState::new(config.clone(), db_pool));
 
     // Initialize RAG pipeline components
     let mut rag_initialized = false;
@@ -96,14 +109,29 @@ async fn main() -> anyhow::Result<()> {
     };
 
     // 4. Initialize Graph Store (SurrealDB)
-    let graph_store = match GraphSearchBackend::new(&config.database).await {
-        Ok(store) => {
-            tracing::info!("Graph store (SurrealDB) initialized");
-            Some(Arc::new(store) as Arc<dyn otl_core::SearchBackend>)
+    let (graph_store, _graph_db) = match SurrealDbStore::new(&config.database).await {
+        Ok(db) => {
+            tracing::info!("Graph database (SurrealDB) connected");
+            let db_arc = Arc::new(db);
+
+            // Set the concrete database for entity operations
+            state.set_graph_db(db_arc.clone()).await;
+
+            // Also create the SearchBackend wrapper
+            match GraphSearchBackend::new(&config.database).await {
+                Ok(search_backend) => {
+                    tracing::info!("Graph search backend initialized");
+                    (Some(Arc::new(search_backend) as Arc<dyn otl_core::SearchBackend>), Some(db_arc))
+                }
+                Err(e) => {
+                    tracing::warn!("Failed to create graph search backend: {}", e);
+                    (None, Some(db_arc))
+                }
+            }
         }
         Err(e) => {
             tracing::warn!("Failed to connect to SurrealDB: {}", e);
-            None
+            (None, None)
         }
     };
 

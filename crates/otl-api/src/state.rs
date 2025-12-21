@@ -4,8 +4,10 @@
 
 use otl_core::config::AppConfig;
 use otl_core::{LlmClient, SearchBackend, User};
+use otl_graph::SurrealDbStore;
 use otl_rag::{HybridRagOrchestrator, RagConfig as OtlRagConfig};
 use otl_vector::VectorSearchBackend;
+use sqlx::PgPool;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
@@ -21,6 +23,8 @@ pub struct AppState {
     pub request_count: AtomicU64,
     /// Ready status
     pub is_ready: AtomicBool,
+    /// PostgreSQL connection pool
+    pub db_pool: PgPool,
     /// RAG orchestrator (optional - initialized lazily)
     pub rag: RwLock<Option<Arc<HybridRagOrchestrator>>>,
     /// Vector search backend
@@ -29,15 +33,18 @@ pub struct AppState {
     pub vector_backend: RwLock<Option<Arc<VectorSearchBackend>>>,
     /// Graph search backend
     pub graph_store: RwLock<Option<Arc<dyn SearchBackend>>>,
+    /// Direct graph database access
+    pub graph_db: RwLock<Option<Arc<SurrealDbStore>>>,
     /// LLM client
     pub llm_client: RwLock<Option<Arc<dyn LlmClient>>>,
 }
 
 impl AppState {
-    /// Create new application state with config
-    pub fn new(config: AppConfig) -> Self {
+    /// Create new application state with config and database pool
+    pub fn new(config: AppConfig, db_pool: PgPool) -> Self {
         Self {
             config,
+            db_pool,
             start_time: Instant::now(),
             request_count: AtomicU64::new(0),
             is_ready: AtomicBool::new(true),
@@ -45,6 +52,7 @@ impl AppState {
             vector_store: RwLock::new(None),
             vector_backend: RwLock::new(None),
             graph_store: RwLock::new(None),
+            graph_db: RwLock::new(None),
             llm_client: RwLock::new(None),
         }
     }
@@ -100,6 +108,11 @@ impl AppState {
         *self.vector_backend.write().await = Some(backend);
     }
 
+    /// Set the graph database (concrete type) for entity operations
+    pub async fn set_graph_db(&self, db: Arc<SurrealDbStore>) {
+        *self.graph_db.write().await = Some(db);
+    }
+
     /// Get RAG orchestrator if initialized
     pub async fn get_rag(&self) -> Option<Arc<HybridRagOrchestrator>> {
         self.rag.read().await.clone()
@@ -116,11 +129,5 @@ impl AppState {
             Some(id) => User::internal(id, vec!["EMPLOYEE".to_string()]),
             None => User::internal("api_user", vec!["EMPLOYEE".to_string()]),
         }
-    }
-}
-
-impl Default for AppState {
-    fn default() -> Self {
-        Self::new(AppConfig::default())
     }
 }
