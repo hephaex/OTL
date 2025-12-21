@@ -17,7 +17,7 @@ pub mod state;
 use axum::Router;
 use state::AppState;
 use std::sync::Arc;
-use tower_http::cors::{Any, CorsLayer};
+use tower_http::cors::{AllowOrigin, Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
@@ -77,10 +77,29 @@ pub struct ApiDoc;
 
 /// Create the main router with all routes
 pub fn create_router(state: Arc<AppState>) -> Router {
-    let cors = CorsLayer::new()
-        .allow_origin(Any)
-        .allow_methods(Any)
-        .allow_headers(Any);
+    // Configure CORS based on config
+    let cors = if state.config.server.cors_origins.is_empty() {
+        // Empty origins = allow all (for development)
+        tracing::warn!("CORS_ORIGINS not set, allowing all origins (not recommended for production)");
+        CorsLayer::new()
+            .allow_origin(Any)
+            .allow_methods(Any)
+            .allow_headers(Any)
+    } else {
+        // Use configured origins
+        let origins: Vec<_> = state
+            .config
+            .server
+            .cors_origins
+            .iter()
+            .filter_map(|s| s.parse().ok())
+            .collect();
+        tracing::info!("CORS configured with {} allowed origins", origins.len());
+        CorsLayer::new()
+            .allow_origin(AllowOrigin::list(origins))
+            .allow_methods(Any)
+            .allow_headers(Any)
+    };
 
     Router::new()
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
