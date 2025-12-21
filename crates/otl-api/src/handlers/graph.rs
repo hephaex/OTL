@@ -10,7 +10,9 @@ use axum::{
     response::IntoResponse,
     Json,
 };
+use otl_graph::GraphStore;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::sync::Arc;
 use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;
@@ -106,41 +108,83 @@ pub struct ListEntitiesQuery {
 )]
 pub async fn list_entities(
     State(state): State<Arc<AppState>>,
-    Query(_params): Query<ListEntitiesQuery>,
+    Query(params): Query<ListEntitiesQuery>,
 ) -> Result<impl IntoResponse, AppError> {
     state.increment_requests();
 
-    // TODO: Implement actual entity listing from SurrealDB
-    let entities = vec![
-        EntityInfo {
-            id: Uuid::new_v4(),
-            entity_type: "LeaveType".to_string(),
-            name: "연차휴가".to_string(),
-            properties: serde_json::json!({"maxDays": 15}),
-            relation_count: 3,
-        },
-        EntityInfo {
-            id: Uuid::new_v4(),
-            entity_type: "LeaveType".to_string(),
-            name: "병가".to_string(),
-            properties: serde_json::json!({"requiresDocument": true}),
-            relation_count: 2,
-        },
-        EntityInfo {
-            id: Uuid::new_v4(),
-            entity_type: "ApprovalProcess".to_string(),
-            name: "팀장승인".to_string(),
-            properties: serde_json::json!({"level": 1}),
-            relation_count: 5,
-        },
-    ];
+    // Get graph database connection
+    let graph_db = state.graph_db.read().await;
+    let graph_db = graph_db
+        .as_ref()
+        .ok_or_else(|| AppError::Internal("Graph database not initialized".to_string()))?;
+
+    // Determine query parameters
+    let limit = params.limit.unwrap_or(100).min(1000); // Cap at 1000
+
+    // Query entities based on filters
+    let entities_result = if let Some(entity_type) = params.entity_type.as_ref() {
+        // Filter by entity type
+        graph_db.find_by_class(entity_type, limit).await
+    } else if let Some(search_term) = params.search.as_ref() {
+        // Search in entity text/name
+        graph_db.query(&format!(
+            "SELECT * FROM entity WHERE properties.text CONTAINS '{}' LIMIT {}",
+            search_term.replace('\'', "\\'"),
+            limit
+        )).await
+    } else {
+        // Get all entities with limit
+        graph_db.query(&format!("SELECT * FROM entity LIMIT {}", limit)).await
+    };
+
+    let entities = entities_result
+        .map_err(|e| AppError::Internal(format!("Failed to query entities: {}", e)))?;
+
+    // Convert to EntityInfo and count relations
+    let mut entity_infos = Vec::new();
+    for entity in entities {
+        // Get relation count for this entity
+        let relation_count = count_entity_relations(&**graph_db, entity.id).await.unwrap_or(0);
+
+        // Extract name from properties
+        let name = extract_entity_name(&entity.properties);
+
+        entity_infos.push(EntityInfo {
+            id: entity.id,
+            entity_type: entity.class.clone(),
+            name,
+            properties: serde_json::to_value(&entity.properties).unwrap_or_default(),
+            relation_count,
+        });
+    }
 
     let response = EntityListResponse {
-        total: entities.len(),
-        entities,
+        total: entity_infos.len(),
+        entities: entity_infos,
     };
 
     Ok((StatusCode::OK, Json(response)))
+}
+
+/// Extract entity name from properties
+fn extract_entity_name(properties: &HashMap<String, serde_json::Value>) -> String {
+    properties
+        .get("text")
+        .and_then(|v| v.as_str())
+        .or_else(|| properties.get("name").and_then(|v| v.as_str()))
+        .or_else(|| properties.get("label").and_then(|v| v.as_str()))
+        .unwrap_or("Unnamed")
+        .to_string()
+}
+
+/// Count relations for an entity
+async fn count_entity_relations(
+    graph_db: &dyn GraphStore,
+    entity_id: Uuid,
+) -> Result<u32, otl_core::OtlError> {
+    // Since we don't have a count method, we'll use traverse as approximation
+    let related = graph_db.traverse(entity_id, 1).await?;
+    Ok(related.len() as u32)
 }
 
 /// Get entity with relations
@@ -162,30 +206,85 @@ pub async fn get_entity(
 ) -> Result<impl IntoResponse, AppError> {
     state.increment_requests();
 
-    // TODO: Implement actual entity retrieval with relations
-    let entity = EntityInfo {
-        id,
-        entity_type: "LeaveType".to_string(),
-        name: "연차휴가".to_string(),
-        properties: serde_json::json!({"maxDays": 15, "description": "연간 15일 기본 부여"}),
-        relation_count: 3,
+    // Get graph database connection
+    let graph_db = state.graph_db.read().await;
+    let graph_db = graph_db
+        .as_ref()
+        .ok_or_else(|| AppError::Internal("Graph database not initialized".to_string()))?;
+
+    // Get the entity
+    let entity_opt = graph_db
+        .get_entity(id)
+        .await
+        .map_err(|e| AppError::Internal(format!("Failed to get entity: {}", e)))?;
+
+    let entity = entity_opt.ok_or_else(|| AppError::NotFound(format!("Entity {} not found", id)))?;
+
+    // Get relation count
+    let relation_count = count_entity_relations(&**graph_db, entity.id)
+        .await
+        .unwrap_or(0);
+
+    // Extract name
+    let name = extract_entity_name(&entity.properties);
+
+    // Build EntityInfo
+    let entity_info = EntityInfo {
+        id: entity.id,
+        entity_type: entity.class.clone(),
+        name: name.clone(),
+        properties: serde_json::to_value(&entity.properties).unwrap_or_default(),
+        relation_count,
     };
 
+    // Get relations (both incoming and outgoing)
+    let (incoming_relations, outgoing_relations) =
+        get_entity_relations(&**graph_db, id, &name).await?;
+
     let response = EntityDetailResponse {
-        entity,
-        incoming_relations: vec![],
-        outgoing_relations: vec![RelationInfo {
-            id: Uuid::new_v4(),
-            relation_type: "requires".to_string(),
-            source_id: id,
-            source_name: "연차휴가".to_string(),
-            target_id: Uuid::new_v4(),
-            target_name: "팀장승인".to_string(),
-            confidence: 0.95,
-        }],
+        entity: entity_info,
+        incoming_relations,
+        outgoing_relations,
     };
 
     Ok((StatusCode::OK, Json(response)))
+}
+
+/// Get incoming and outgoing relations for an entity
+async fn get_entity_relations(
+    graph_db: &dyn GraphStore,
+    entity_id: Uuid,
+    entity_name: &str,
+) -> Result<(Vec<RelationInfo>, Vec<RelationInfo>), AppError> {
+    // We'll need to use raw SurrealDB queries since GraphStore doesn't have relation methods
+    // For now, use traverse to get connected entities and infer relationships
+    let related_entities = graph_db
+        .traverse(entity_id, 1)
+        .await
+        .map_err(|e| AppError::Internal(format!("Failed to traverse: {}", e)))?;
+
+    // Build relation info (simplified - in real implementation would query relates table)
+    let mut outgoing = Vec::new();
+    let incoming = Vec::new(); // Currently not populated - would need actual query
+
+    for related in related_entities {
+        let target_name = extract_entity_name(&related.properties);
+
+        // Create a relation (we don't have full relation data from traverse)
+        let relation = RelationInfo {
+            id: Uuid::new_v4(), // Would be actual relation ID
+            relation_type: "relates".to_string(), // Would be actual predicate
+            source_id: entity_id,
+            source_name: entity_name.to_string(),
+            target_id: related.id,
+            target_name,
+            confidence: 0.8, // Default confidence
+        };
+
+        outgoing.push(relation);
+    }
+
+    Ok((incoming, outgoing))
 }
 
 /// Graph search request
@@ -259,43 +358,111 @@ pub async fn search_graph(
         return Err(AppError::BadRequest("Query cannot be empty".to_string()));
     }
 
-    // TODO: Implement actual graph search
-    let entities = vec![
-        EntityInfo {
-            id: Uuid::new_v4(),
-            entity_type: "LeaveType".to_string(),
-            name: "연차휴가".to_string(),
-            properties: serde_json::json!({}),
-            relation_count: 3,
-        },
-        EntityInfo {
-            id: Uuid::new_v4(),
-            entity_type: "ApprovalProcess".to_string(),
-            name: "팀장승인".to_string(),
-            properties: serde_json::json!({}),
-            relation_count: 5,
-        },
-    ];
+    // Get graph database connection
+    let graph_db = state.graph_db.read().await;
+    let graph_db = graph_db
+        .as_ref()
+        .ok_or_else(|| AppError::Internal("Graph database not initialized".to_string()))?;
 
-    let relations = vec![RelationInfo {
-        id: Uuid::new_v4(),
-        relation_type: "requires".to_string(),
-        source_id: entities[0].id,
-        source_name: "연차휴가".to_string(),
-        target_id: entities[1].id,
-        target_name: "팀장승인".to_string(),
-        confidence: 0.95,
-    }];
+    // Search for matching entities using keyword search
+    let initial_entities = graph_db
+        .query(&format!(
+            "SELECT * FROM entity WHERE properties.text CONTAINS '{}' LIMIT {}",
+            req.query.replace('\'', "\\'"),
+            req.limit
+        ))
+        .await
+        .map_err(|e| AppError::Internal(format!("Search failed: {}", e)))?;
+
+    if initial_entities.is_empty() {
+        return Ok((
+            StatusCode::OK,
+            Json(GraphSearchResponse {
+                metadata: SearchMetadata {
+                    query: req.query,
+                    depth: req.depth,
+                    total_entities: 0,
+                    total_relations: 0,
+                    processing_time_ms: start.elapsed().as_millis() as u64,
+                },
+                entities: vec![],
+                relations: vec![],
+            }),
+        ));
+    }
+
+    // Expand to subgraph by traversing relations
+    let mut all_entities = initial_entities.clone();
+    let mut entity_map: HashMap<Uuid, String> = HashMap::new();
+
+    for entity in &initial_entities {
+        let name = extract_entity_name(&entity.properties);
+        entity_map.insert(entity.id, name);
+    }
+
+    // Traverse to get related entities based on depth
+    if req.depth > 0 {
+        for entity in &initial_entities {
+            let related = graph_db
+                .traverse(entity.id, req.depth)
+                .await
+                .map_err(|e| AppError::Internal(format!("Traversal failed: {}", e)))?;
+
+            for rel_entity in related {
+                if !entity_map.contains_key(&rel_entity.id) {
+                    let name = extract_entity_name(&rel_entity.properties);
+                    entity_map.insert(rel_entity.id, name);
+                    all_entities.push(rel_entity);
+                }
+            }
+        }
+    }
+
+    // Build EntityInfo list
+    let mut entity_infos = Vec::new();
+    for entity in &all_entities {
+        let name = entity_map
+            .get(&entity.id)
+            .cloned()
+            .unwrap_or_else(|| "Unnamed".to_string());
+
+        let relation_count = count_entity_relations(&**graph_db, entity.id)
+            .await
+            .unwrap_or(0);
+
+        entity_infos.push(EntityInfo {
+            id: entity.id,
+            entity_type: entity.class.clone(),
+            name,
+            properties: serde_json::to_value(&entity.properties).unwrap_or_default(),
+            relation_count,
+        });
+    }
+
+    // Build relations between entities in the subgraph
+    let mut relations = Vec::new();
+    for entity in &all_entities {
+        let entity_name = entity_map.get(&entity.id).cloned().unwrap_or_default();
+
+        let (_, outgoing) = get_entity_relations(&**graph_db, entity.id, &entity_name).await?;
+
+        // Only include relations where both ends are in the subgraph
+        for rel in outgoing {
+            if entity_map.contains_key(&rel.target_id) {
+                relations.push(rel);
+            }
+        }
+    }
 
     let response = GraphSearchResponse {
         metadata: SearchMetadata {
             query: req.query,
             depth: req.depth,
-            total_entities: entities.len(),
+            total_entities: entity_infos.len(),
             total_relations: relations.len(),
             processing_time_ms: start.elapsed().as_millis() as u64,
         },
-        entities,
+        entities: entity_infos,
         relations,
     };
 
@@ -331,6 +498,8 @@ pub async fn get_ontology(
 ) -> Result<impl IntoResponse, AppError> {
     state.increment_requests();
 
+    // Query ontology from database or use default schema
+    // For now, return the HR ontology schema from Sprint 0
     let response = OntologyResponse {
         classes: vec![
             OntologyClass {
@@ -344,8 +513,33 @@ pub async fn get_ontology(
                 parent: None,
             },
             OntologyClass {
+                name: "Position".to_string(),
+                label: "직위".to_string(),
+                parent: None,
+            },
+            OntologyClass {
                 name: "LeaveType".to_string(),
                 label: "휴가유형".to_string(),
+                parent: None,
+            },
+            OntologyClass {
+                name: "Policy".to_string(),
+                label: "정책".to_string(),
+                parent: None,
+            },
+            OntologyClass {
+                name: "ApprovalProcess".to_string(),
+                label: "승인절차".to_string(),
+                parent: None,
+            },
+            OntologyClass {
+                name: "BenefitType".to_string(),
+                label: "복리후생".to_string(),
+                parent: None,
+            },
+            OntologyClass {
+                name: "Regulation".to_string(),
+                label: "규정".to_string(),
                 parent: None,
             },
         ],
@@ -357,10 +551,28 @@ pub async fn get_ontology(
                 range: "Department".to_string(),
             },
             OntologyProperty {
+                name: "manages".to_string(),
+                label: "관리".to_string(),
+                domain: "Employee".to_string(),
+                range: "Department".to_string(),
+            },
+            OntologyProperty {
                 name: "requires".to_string(),
                 label: "필요".to_string(),
                 domain: "LeaveType".to_string(),
                 range: "ApprovalProcess".to_string(),
+            },
+            OntologyProperty {
+                name: "references".to_string(),
+                label: "참조".to_string(),
+                domain: "Policy".to_string(),
+                range: "Regulation".to_string(),
+            },
+            OntologyProperty {
+                name: "appliesTo".to_string(),
+                label: "적용대상".to_string(),
+                domain: "Policy".to_string(),
+                range: "Employee".to_string(),
             },
         ],
         version: "1.0.0".to_string(),
@@ -379,13 +591,70 @@ pub struct UpdateOntologyRequest {
 /// Update ontology (admin only)
 pub async fn update_ontology(
     State(state): State<Arc<AppState>>,
-    Json(_req): Json<UpdateOntologyRequest>,
+    Json(req): Json<UpdateOntologyRequest>,
 ) -> Result<impl IntoResponse, AppError> {
     state.increment_requests();
 
-    // TODO: Implement ontology update with admin check
+    // TODO: Add proper authentication and admin role check
+    // For now, this is a placeholder that validates the request structure
+
+    // Validate classes if provided
+    if let Some(classes) = &req.classes {
+        if classes.is_empty() {
+            return Err(AppError::BadRequest(
+                "Classes array cannot be empty".to_string(),
+            ));
+        }
+
+        // Validate each class
+        for class in classes {
+            if class.name.is_empty() || class.label.is_empty() {
+                return Err(AppError::BadRequest(format!(
+                    "Invalid class definition: name and label are required"
+                )));
+            }
+        }
+    }
+
+    // Validate properties if provided
+    if let Some(properties) = &req.properties {
+        if properties.is_empty() {
+            return Err(AppError::BadRequest(
+                "Properties array cannot be empty".to_string(),
+            ));
+        }
+
+        // Validate each property
+        for prop in properties {
+            if prop.name.is_empty()
+                || prop.label.is_empty()
+                || prop.domain.is_empty()
+                || prop.range.is_empty()
+            {
+                return Err(AppError::BadRequest(format!(
+                    "Invalid property definition: all fields are required"
+                )));
+            }
+        }
+    }
+
+    // In a real implementation, this would:
+    // 1. Check if user has admin role
+    // 2. Store the ontology in PostgreSQL metadata table
+    // 3. Update SurrealDB schema definitions
+    // 4. Invalidate any cached ontology data
+
+    tracing::info!(
+        "Ontology update request received (classes: {}, properties: {})",
+        req.classes.as_ref().map(|c| c.len()).unwrap_or(0),
+        req.properties.as_ref().map(|p| p.len()).unwrap_or(0)
+    );
+
     Ok((
         StatusCode::OK,
-        Json(serde_json::json!({"message": "Ontology updated"})),
+        Json(serde_json::json!({
+            "message": "Ontology update validated successfully",
+            "note": "Full implementation pending: requires admin authentication and database storage"
+        })),
     ))
 }
