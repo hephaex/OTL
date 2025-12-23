@@ -134,11 +134,11 @@ pub async fn list_entities(
         )).await
     } else {
         // Get all entities with limit
-        graph_db.query(&format!("SELECT * FROM entity LIMIT {}", limit)).await
+        graph_db.query(&format!("SELECT * FROM entity LIMIT {limit}")).await
     };
 
     let entities = entities_result
-        .map_err(|e| AppError::Internal(format!("Failed to query entities: {}", e)))?;
+        .map_err(|e| AppError::Internal(format!("Failed to query entities: {e}")))?;
 
     // Convert to EntityInfo and count relations
     let mut entity_infos = Vec::new();
@@ -216,9 +216,9 @@ pub async fn get_entity(
     let entity_opt = graph_db
         .get_entity(id)
         .await
-        .map_err(|e| AppError::Internal(format!("Failed to get entity: {}", e)))?;
+        .map_err(|e| AppError::Internal(format!("Failed to get entity: {e}")))?;
 
-    let entity = entity_opt.ok_or_else(|| AppError::NotFound(format!("Entity {} not found", id)))?;
+    let entity = entity_opt.ok_or_else(|| AppError::NotFound(format!("Entity {id} not found")))?;
 
     // Get relation count
     let relation_count = count_entity_relations(&**graph_db, entity.id)
@@ -261,7 +261,7 @@ async fn get_entity_relations(
     let related_entities = graph_db
         .traverse(entity_id, 1)
         .await
-        .map_err(|e| AppError::Internal(format!("Failed to traverse: {}", e)))?;
+        .map_err(|e| AppError::Internal(format!("Failed to traverse: {e}")))?;
 
     // Build relation info (simplified - in real implementation would query relates table)
     let mut outgoing = Vec::new();
@@ -372,7 +372,7 @@ pub async fn search_graph(
             req.limit
         ))
         .await
-        .map_err(|e| AppError::Internal(format!("Search failed: {}", e)))?;
+        .map_err(|e| AppError::Internal(format!("Search failed: {e}")))?;
 
     if initial_entities.is_empty() {
         return Ok((
@@ -406,12 +406,12 @@ pub async fn search_graph(
             let related = graph_db
                 .traverse(entity.id, req.depth)
                 .await
-                .map_err(|e| AppError::Internal(format!("Traversal failed: {}", e)))?;
+                .map_err(|e| AppError::Internal(format!("Traversal failed: {e}")))?;
 
             for rel_entity in related {
-                if !entity_map.contains_key(&rel_entity.id) {
+                if let std::collections::hash_map::Entry::Vacant(e) = entity_map.entry(rel_entity.id) {
                     let name = extract_entity_name(&rel_entity.properties);
-                    entity_map.insert(rel_entity.id, name);
+                    e.insert(name);
                     all_entities.push(rel_entity);
                 }
             }
@@ -609,9 +609,9 @@ pub async fn update_ontology(
         // Validate each class
         for class in classes {
             if class.name.is_empty() || class.label.is_empty() {
-                return Err(AppError::BadRequest(format!(
-                    "Invalid class definition: name and label are required"
-                )));
+                return Err(AppError::BadRequest(
+                    "Invalid class definition: name and label are required".to_string()
+                ));
             }
         }
     }
@@ -631,9 +631,9 @@ pub async fn update_ontology(
                 || prop.domain.is_empty()
                 || prop.range.is_empty()
             {
-                return Err(AppError::BadRequest(format!(
-                    "Invalid property definition: all fields are required"
-                )));
+                return Err(AppError::BadRequest(
+                    "Invalid property definition: all fields are required".to_string()
+                ));
             }
         }
     }

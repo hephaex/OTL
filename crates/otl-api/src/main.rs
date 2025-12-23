@@ -39,11 +39,17 @@ async fn main() -> anyhow::Result<()> {
 
     tracing::info!("Connecting to PostgreSQL...");
     let db_pool = PgPoolOptions::new()
-        .max_connections(10)
+        .max_connections(config.database.postgres_pool_size)
+        .acquire_timeout(std::time::Duration::from_secs(30))
+        .idle_timeout(std::time::Duration::from_secs(600))
+        .max_lifetime(std::time::Duration::from_secs(1800))
         .connect(&database_url)
         .await?;
 
-    tracing::info!("PostgreSQL connected successfully");
+    tracing::info!(
+        "PostgreSQL connected successfully (pool_size: {})",
+        config.database.postgres_pool_size
+    );
 
     // Create application state
     let state = Arc::new(AppState::new(config.clone(), db_pool));

@@ -63,7 +63,7 @@ pub enum AppError {
     NotFound(String),
     BadRequest(String),
     Unauthorized,
-    Forbidden,
+    Forbidden(String),
     Internal(String),
     Database(String),
 }
@@ -74,7 +74,10 @@ impl IntoResponse for AppError {
             AppError::NotFound(msg) => (StatusCode::NOT_FOUND, ApiError::not_found(&msg)),
             AppError::BadRequest(msg) => (StatusCode::BAD_REQUEST, ApiError::bad_request(msg)),
             AppError::Unauthorized => (StatusCode::UNAUTHORIZED, ApiError::unauthorized()),
-            AppError::Forbidden => (StatusCode::FORBIDDEN, ApiError::forbidden()),
+            AppError::Forbidden(msg) => (
+                StatusCode::FORBIDDEN,
+                ApiError::new("FORBIDDEN", msg)
+            ),
             AppError::Internal(msg) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 ApiError::internal_error().with_details(msg),
@@ -92,5 +95,23 @@ impl IntoResponse for AppError {
 impl From<anyhow::Error> for AppError {
     fn from(err: anyhow::Error) -> Self {
         AppError::Internal(err.to_string())
+    }
+}
+
+impl From<otl_core::OtlError> for AppError {
+    fn from(err: otl_core::OtlError) -> Self {
+        use otl_core::OtlError;
+
+        match err {
+            OtlError::NotFound(msg) => AppError::NotFound(msg),
+            OtlError::AccessDenied { reason } => AppError::Forbidden(reason),
+            OtlError::InvalidOntology(msg) => AppError::BadRequest(format!("Invalid ontology: {msg}")),
+            OtlError::ValidationError(msg) => AppError::BadRequest(msg),
+            OtlError::DatabaseError(msg) => AppError::Database(msg),
+            OtlError::SearchError(msg) => AppError::Internal(format!("Search error: {msg}")),
+            OtlError::LlmError(msg) => AppError::Internal(format!("LLM error: {msg}")),
+            OtlError::ConfigError(msg) => AppError::Internal(format!("Configuration error: {msg}")),
+            OtlError::Other(err) => AppError::Internal(err.to_string()),
+        }
     }
 }

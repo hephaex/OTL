@@ -5,9 +5,11 @@
 //! - Document management
 //! - Knowledge graph operations
 //! - HITL verification
+//! - Authentication and authorization
 //!
 //! Author: hephaex@gmail.com
 
+pub mod auth;
 pub mod error;
 pub mod handlers;
 pub mod middleware;
@@ -122,5 +124,38 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .with_state(state)
 }
 
-// NOTE: create_router_default() has been removed because AppState now requires
-// a database pool. For testing, create a test database and use AppState::new() directly.
+/// Create AppState for testing without requiring a real database
+///
+/// This function is available in test builds and creates a minimal
+/// AppState that can be used for API endpoint testing without database connectivity.
+///
+/// Note: Tests that use database operations will fail with 500 errors.
+/// For those tests, use a real test database with proper migrations.
+#[cfg(any(test, feature = "test-utils"))]
+pub fn create_test_state() -> Arc<AppState> {
+    use otl_core::config::AppConfig;
+    use sqlx::postgres::PgPoolOptions;
+
+    // Create a minimal test config
+    let config = AppConfig::default();
+
+    // Create an unconnected pool (0 connections)
+    // This works for testing routes that don't actually use the database
+    let pool = PgPoolOptions::new()
+        .max_connections(1)
+        .connect_lazy("postgres://test:test@localhost/test")
+        .expect("Failed to create test pool");
+
+    Arc::new(AppState::new(config, pool))
+}
+
+/// Create a router for testing with a mock database pool
+///
+/// This function is available in test builds.
+///
+/// Note: Tests that use database operations will fail with 500 errors.
+/// For those tests, use a real test database with proper migrations.
+#[cfg(any(test, feature = "test-utils"))]
+pub fn create_router_for_testing() -> Router {
+    create_router(create_test_state())
+}

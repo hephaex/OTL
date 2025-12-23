@@ -1,12 +1,15 @@
 //! API Integration Tests
 //!
+//! Note: Tests marked with #[ignore] require a real database connection.
+//! To run them, set up a test database and run: cargo test -- --ignored
+//!
 //! Author: hephaex@gmail.com
 
 use axum::{
     body::Body,
     http::{Request, StatusCode},
 };
-use otl_api::create_router_default;
+use otl_api::create_router_for_testing;
 use serde_json::{json, Value};
 use tower::ServiceExt;
 
@@ -31,7 +34,7 @@ fn create_json_request(method: &str, uri: &str, body: Option<Value>) -> Request<
 
 #[tokio::test]
 async fn test_health_check() {
-    let app = create_router_default();
+    let app = create_router_for_testing();
 
     let response = app
         .oneshot(
@@ -56,7 +59,7 @@ async fn test_health_check() {
 
 #[tokio::test]
 async fn test_readiness_check() {
-    let app = create_router_default();
+    let app = create_router_for_testing();
 
     let response = app
         .oneshot(
@@ -81,7 +84,7 @@ async fn test_readiness_check() {
 
 #[tokio::test]
 async fn test_metrics_endpoint() {
-    let app = create_router_default();
+    let app = create_router_for_testing();
 
     let response = app
         .oneshot(
@@ -110,7 +113,7 @@ async fn test_metrics_endpoint() {
 
 #[tokio::test]
 async fn test_query_endpoint_success() {
-    let app = create_router_default();
+    let app = create_router_for_testing();
 
     let request = create_json_request(
         "POST",
@@ -138,7 +141,7 @@ async fn test_query_endpoint_success() {
 
 #[tokio::test]
 async fn test_query_endpoint_empty_question() {
-    let app = create_router_default();
+    let app = create_router_for_testing();
 
     let request = create_json_request(
         "POST",
@@ -163,7 +166,7 @@ async fn test_query_endpoint_empty_question() {
 
 #[tokio::test]
 async fn test_query_endpoint_whitespace_question() {
-    let app = create_router_default();
+    let app = create_router_for_testing();
 
     let request = create_json_request(
         "POST",
@@ -182,10 +185,12 @@ async fn test_query_endpoint_whitespace_question() {
 // =============================================================================
 // Document API Tests
 // =============================================================================
+// Note: These tests require a real database connection
 
 #[tokio::test]
+#[ignore = "requires database"]
 async fn test_list_documents() {
-    let app = create_router_default();
+    let app = create_router_for_testing();
 
     let response = app
         .oneshot(
@@ -211,8 +216,9 @@ async fn test_list_documents() {
 }
 
 #[tokio::test]
+#[ignore = "requires database"]
 async fn test_list_documents_with_pagination() {
-    let app = create_router_default();
+    let app = create_router_for_testing();
 
     let response = app
         .oneshot(
@@ -236,8 +242,9 @@ async fn test_list_documents_with_pagination() {
 }
 
 #[tokio::test]
+#[ignore = "requires database"]
 async fn test_get_document() {
-    let app = create_router_default();
+    let app = create_router_for_testing();
 
     let response = app
         .oneshot(
@@ -262,8 +269,9 @@ async fn test_get_document() {
 }
 
 #[tokio::test]
+#[ignore = "requires database"]
 async fn test_upload_document() {
-    let app = create_router_default();
+    let app = create_router_for_testing();
 
     let request = create_json_request(
         "POST",
@@ -291,8 +299,9 @@ async fn test_upload_document() {
 }
 
 #[tokio::test]
+#[ignore = "requires database"]
 async fn test_upload_document_empty_title() {
-    let app = create_router_default();
+    let app = create_router_for_testing();
 
     let request = create_json_request(
         "POST",
@@ -310,8 +319,9 @@ async fn test_upload_document_empty_title() {
 }
 
 #[tokio::test]
+#[ignore = "requires database"]
 async fn test_delete_document() {
-    let app = create_router_default();
+    let app = create_router_for_testing();
 
     let response = app
         .oneshot(
@@ -337,10 +347,12 @@ async fn test_delete_document() {
 // =============================================================================
 // Verification API Tests
 // =============================================================================
+// Note: These tests require a real database connection
 
 #[tokio::test]
+#[ignore = "requires database"]
 async fn test_list_pending_extractions() {
-    let app = create_router_default();
+    let app = create_router_for_testing();
 
     let response = app
         .oneshot(
@@ -364,8 +376,9 @@ async fn test_list_pending_extractions() {
 }
 
 #[tokio::test]
+#[ignore = "requires database"]
 async fn test_approve_extraction() {
-    let app = create_router_default();
+    let app = create_router_for_testing();
 
     let request = create_json_request(
         "POST",
@@ -388,8 +401,9 @@ async fn test_approve_extraction() {
 }
 
 #[tokio::test]
+#[ignore = "requires database"]
 async fn test_reject_extraction() {
-    let app = create_router_default();
+    let app = create_router_for_testing();
 
     let request = create_json_request(
         "POST",
@@ -414,10 +428,12 @@ async fn test_reject_extraction() {
 // =============================================================================
 // Graph API Tests
 // =============================================================================
+// Note: These tests require a real database connection
 
 #[tokio::test]
+#[ignore = "requires database"]
 async fn test_list_entities() {
-    let app = create_router_default();
+    let app = create_router_for_testing();
 
     let response = app
         .oneshot(
@@ -433,8 +449,9 @@ async fn test_list_entities() {
 }
 
 #[tokio::test]
+#[ignore = "requires database"]
 async fn test_search_graph() {
-    let app = create_router_default();
+    let app = create_router_for_testing();
 
     let request = create_json_request(
         "POST",
@@ -456,7 +473,7 @@ async fn test_search_graph() {
 
 #[tokio::test]
 async fn test_swagger_ui_available() {
-    let app = create_router_default();
+    let app = create_router_for_testing();
 
     let response = app
         .oneshot(
@@ -476,7 +493,7 @@ async fn test_swagger_ui_available() {
 
 #[tokio::test]
 async fn test_openapi_spec_available() {
-    let app = create_router_default();
+    let app = create_router_for_testing();
 
     let response = app
         .oneshot(

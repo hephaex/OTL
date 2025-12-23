@@ -11,11 +11,25 @@ use axum::{
     Json,
 };
 use base64::Engine;
+use chrono::{DateTime, Utc};
 use futures::stream::{self, StreamExt};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;
+
+/// Database row for document queries
+#[derive(sqlx::FromRow)]
+struct DocumentRow {
+    id: Uuid,
+    title: String,
+    file_type: String,
+    access_level: String,
+    department: Option<String>,
+    created_at: DateTime<Utc>,
+    updated_at: DateTime<Utc>,
+    chunk_count: i64,
+}
 
 /// Document information
 #[derive(Debug, Serialize, ToSchema)]
@@ -105,36 +119,154 @@ pub async fn list_documents(
 ) -> Result<impl IntoResponse, AppError> {
     state.increment_requests();
 
-    let page = params.page.unwrap_or(1);
-    let page_size = params.page_size.unwrap_or(20);
+    let page = params.page.unwrap_or(1).max(1);
+    let page_size = params.page_size.unwrap_or(20).min(100); // Cap at 100
+    let offset = ((page - 1) * page_size) as i64;
 
-    // TODO: Implement actual document listing from database
-    // For now, return mock data
-    let documents = vec![
-        DocumentInfo {
-            id: Uuid::new_v4(),
-            title: "인사규정_2024.pdf".to_string(),
-            file_type: "pdf".to_string(),
-            access_level: "internal".to_string(),
-            department: Some("인사팀".to_string()),
-            created_at: "2024-01-15T10:00:00Z".to_string(),
-            updated_at: "2024-01-15T10:00:00Z".to_string(),
-            chunk_count: 45,
-        },
-        DocumentInfo {
-            id: Uuid::new_v4(),
-            title: "휴가신청_매뉴얼.docx".to_string(),
-            file_type: "docx".to_string(),
-            access_level: "internal".to_string(),
-            department: Some("인사팀".to_string()),
-            created_at: "2024-02-20T14:30:00Z".to_string(),
-            updated_at: "2024-02-20T14:30:00Z".to_string(),
-            chunk_count: 12,
-        },
-    ];
+    // Get user context (for now, use default user)
+    let user = state.get_default_user(None);
+
+    // Build base query with ACL filtering
+    let mut query = String::from(
+        "SELECT d.id, d.title, d.file_type::text, d.access_level::text, d.department,
+                d.created_at, d.updated_at, COUNT(dc.id) as chunk_count
+         FROM documents d
+         LEFT JOIN document_chunks dc ON d.id = dc.document_id
+         WHERE d.deleted_at IS NULL"
+    );
+
+    let mut conditions = Vec::new();
+    let mut param_count = 1;
+
+    // ACL filtering based on user permissions
+    if !user.is_internal {
+        // Anonymous users can only see public documents
+        conditions.push("d.access_level = 'public'".to_string());
+    } else {
+        // Internal users: apply ACL logic
+        // Can see: public, internal, confidential (if dept/role match), restricted (if allowed)
+        let acl_filter = format!(
+            "(d.access_level = 'public' OR d.access_level = 'internal' \
+             OR (d.access_level = 'confidential' AND (d.department = ${} OR d.required_roles && ${{{}}})) \
+             OR (d.access_level = 'restricted' AND (d.owner_id = ${} OR ${} = ANY(d.allowed_users))))",
+            param_count,
+            param_count + 1,
+            param_count + 2,
+            param_count + 2
+        );
+        conditions.push(acl_filter);
+        param_count += 3;
+    }
+
+    // Apply additional filters
+    if let Some(ref _file_type) = params.file_type {
+        conditions.push(format!("d.file_type::text = ${param_count}"));
+        param_count += 1;
+    }
+
+    if let Some(ref _department) = params.department {
+        conditions.push(format!("d.department = ${param_count}"));
+        param_count += 1;
+    }
+
+    if let Some(ref _search) = params.search {
+        conditions.push(format!("d.title ILIKE ${param_count}"));
+        param_count += 1;
+    }
+
+    if !conditions.is_empty() {
+        query.push_str(" AND ");
+        query.push_str(&conditions.join(" AND "));
+    }
+
+    query.push_str(" GROUP BY d.id ORDER BY d.created_at DESC LIMIT $");
+    query.push_str(&(param_count).to_string());
+    param_count += 1;
+    query.push_str(" OFFSET $");
+    query.push_str(&(param_count).to_string());
+
+    // Execute query with parameters
+    let mut query_builder = sqlx::query_as::<_, DocumentRow>(&query);
+
+    // Bind ACL parameters
+    if user.is_internal {
+        let dept = user.departments.first().cloned().unwrap_or_default();
+        query_builder = query_builder
+            .bind(dept.clone())
+            .bind(&user.roles)
+            .bind(&user.user_id);
+    }
+
+    // Bind filter parameters
+    if let Some(ref file_type) = params.file_type {
+        query_builder = query_builder.bind(file_type);
+    }
+    if let Some(ref department) = params.department {
+        query_builder = query_builder.bind(department);
+    }
+    if let Some(ref search) = params.search {
+        query_builder = query_builder.bind(format!("%{search}%"));
+    }
+
+    // Bind pagination
+    query_builder = query_builder.bind(page_size as i64).bind(offset);
+
+    let rows = query_builder
+        .fetch_all(&state.db_pool)
+        .await
+        .map_err(|e| AppError::Database(format!("Failed to fetch documents: {e}")))?;
+
+    // Get total count with same filters
+    let count_query = format!(
+        "SELECT COUNT(DISTINCT d.id) as count FROM documents d WHERE d.deleted_at IS NULL{}",
+        if conditions.is_empty() {
+            String::new()
+        } else {
+            format!(" AND {}", conditions.join(" AND "))
+        }
+    );
+
+    let mut count_builder = sqlx::query_scalar::<_, i64>(&count_query);
+
+    // Bind same parameters for count
+    if user.is_internal {
+        let dept = user.departments.first().cloned().unwrap_or_default();
+        count_builder = count_builder
+            .bind(dept.clone())
+            .bind(&user.roles)
+            .bind(&user.user_id);
+    }
+    if let Some(ref file_type) = params.file_type {
+        count_builder = count_builder.bind(file_type);
+    }
+    if let Some(ref department) = params.department {
+        count_builder = count_builder.bind(department);
+    }
+    if let Some(ref search) = params.search {
+        count_builder = count_builder.bind(format!("%{search}%"));
+    }
+
+    let total = count_builder
+        .fetch_one(&state.db_pool)
+        .await
+        .map_err(|e| AppError::Database(format!("Failed to count documents: {e}")))?;
+
+    let documents: Vec<DocumentInfo> = rows
+        .into_iter()
+        .map(|row| DocumentInfo {
+            id: row.id,
+            title: row.title,
+            file_type: row.file_type,
+            access_level: row.access_level,
+            department: row.department,
+            created_at: row.created_at.to_rfc3339(),
+            updated_at: row.updated_at.to_rfc3339(),
+            chunk_count: row.chunk_count as u32,
+        })
+        .collect();
 
     let response = DocumentListResponse {
-        total: documents.len(),
+        total: total as usize,
         documents,
         page,
         page_size,
@@ -162,17 +294,49 @@ pub async fn get_document(
 ) -> Result<impl IntoResponse, AppError> {
     state.increment_requests();
 
-    // TODO: Implement actual document retrieval
-    // For now, return mock data
+    // Get user context
+    let user = state.get_default_user(None);
+
+    // Query document with chunk count
+    let row = sqlx::query_as::<_, DocumentRow>(
+        "SELECT d.id, d.title, d.file_type::text, d.access_level::text, d.department,
+                d.created_at, d.updated_at, COUNT(dc.id) as chunk_count
+         FROM documents d
+         LEFT JOIN document_chunks dc ON d.id = dc.document_id
+         WHERE d.id = $1 AND d.deleted_at IS NULL
+         GROUP BY d.id"
+    )
+    .bind(id)
+    .fetch_optional(&state.db_pool)
+    .await
+    .map_err(|e| AppError::Database(format!("Failed to fetch document: {e}")))?;
+
+    let row = row.ok_or_else(|| AppError::NotFound(format!("Document {id} not found")))?;
+
+    // Check ACL permissions
+    let acl = otl_core::DocumentAcl {
+        access_level: parse_access_level(&row.access_level),
+        owner_id: None, // Would need to fetch from DB if needed
+        department: row.department.clone(),
+        required_roles: Vec::new(), // Would need to fetch from DB if needed
+        allowed_users: Vec::new(), // Would need to fetch from DB if needed
+    };
+
+    if !acl.can_access(&user) {
+        return Err(AppError::Forbidden(
+            "You don't have permission to access this document".to_string(),
+        ));
+    }
+
     let doc = DocumentInfo {
-        id,
-        title: "인사규정_2024.pdf".to_string(),
-        file_type: "pdf".to_string(),
-        access_level: "internal".to_string(),
-        department: Some("인사팀".to_string()),
-        created_at: "2024-01-15T10:00:00Z".to_string(),
-        updated_at: "2024-01-15T10:00:00Z".to_string(),
-        chunk_count: 45,
+        id: row.id,
+        title: row.title,
+        file_type: row.file_type,
+        access_level: row.access_level,
+        department: row.department,
+        created_at: row.created_at.to_rfc3339(),
+        updated_at: row.updated_at.to_rfc3339(),
+        chunk_count: row.chunk_count as u32,
     };
 
     Ok((StatusCode::OK, Json(doc)))
@@ -517,15 +681,100 @@ pub async fn delete_document(
 ) -> Result<impl IntoResponse, AppError> {
     state.increment_requests();
 
-    // TODO: Implement actual document deletion
-    tracing::info!("Deleting document: {}", id);
+    // Get user context
+    let user = state.get_default_user(None);
+
+    // First, check if document exists and user has permission
+    #[derive(sqlx::FromRow)]
+    struct DocCheck {
+        #[allow(dead_code)]
+        id: Uuid,
+        access_level: String,
+        owner_id: Option<String>,
+        department: Option<String>,
+    }
+
+    let doc: Option<DocCheck> = sqlx::query_as(
+        "SELECT id, access_level::text, owner_id, department
+         FROM documents
+         WHERE id = $1 AND deleted_at IS NULL"
+    )
+    .bind(id)
+    .fetch_optional(&state.db_pool)
+    .await
+    .map_err(|e| AppError::Database(format!("Failed to fetch document: {e}")))?;
+
+    let doc = doc.ok_or_else(|| AppError::NotFound(format!("Document {id} not found")))?;
+
+    // Check ACL permissions
+    let acl = otl_core::DocumentAcl {
+        access_level: parse_access_level(&doc.access_level),
+        owner_id: doc.owner_id.clone(),
+        department: doc.department.clone(),
+        required_roles: Vec::new(),
+        allowed_users: Vec::new(),
+    };
+
+    if !acl.can_access(&user) {
+        return Err(AppError::Forbidden(
+            "You don't have permission to delete this document".to_string(),
+        ));
+    }
+
+    tracing::info!("Deleting document: {id}");
+
+    // Delete from vector store if available (use document-level deletion)
+    let vector_backend_guard = state.vector_backend.read().await;
+    if let Some(vector_backend) = vector_backend_guard.as_ref() {
+        let backend = vector_backend.clone();
+        drop(vector_backend_guard);
+
+        match backend.delete_by_document(id).await {
+            Ok(count) => {
+                tracing::info!("Deleted {count} vectors from vector store for document {id}");
+            }
+            Err(e) => {
+                tracing::warn!("Failed to delete vectors for document {id}: {e}");
+            }
+        }
+    }
+
+    // Soft delete the document (cascade will handle chunks via ON DELETE CASCADE)
+    let result = sqlx::query(
+        "UPDATE documents SET deleted_at = NOW() WHERE id = $1"
+    )
+    .bind(id)
+    .execute(&state.db_pool)
+    .await
+    .map_err(|e| AppError::Database(format!("Failed to delete document: {e}")))?;
+
+    if result.rows_affected() == 0 {
+        return Err(AppError::NotFound(format!("Document {id} not found")));
+    }
+
+    tracing::info!("Document {id} soft deleted successfully");
 
     Ok((
         StatusCode::OK,
         Json(DeleteDocumentResponse {
-            message: format!("Document {id} deleted"),
+            message: format!("Document {id} deleted successfully"),
         }),
     ))
+}
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+/// Parse access level string to enum
+fn parse_access_level(level: &str) -> otl_core::AccessLevel {
+    match level.to_lowercase().as_str() {
+        "public" => otl_core::AccessLevel::Public,
+        "internal" => otl_core::AccessLevel::Internal,
+        "confidential" => otl_core::AccessLevel::Confidential,
+        "restricted" => otl_core::AccessLevel::Restricted,
+        _ => otl_core::AccessLevel::Internal, // Default to internal
+    }
 }
 
 // ============================================================================

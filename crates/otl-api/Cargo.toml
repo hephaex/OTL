@@ -11,6 +11,10 @@ repository.workspace = true
 name = "otl-api"
 path = "src/main.rs"
 
+[features]
+# Feature to enable test utilities for integration tests
+test-utils = []
+
 [dependencies]
 otl-core = { path = "../otl-core" }
 otl-rag = { path = "../otl-rag" }
@@ -31,9 +35,14 @@ tracing-subscriber = { workspace = true }
 utoipa = { workspace = true }
 utoipa-swagger-ui = { workspace = true }
 jsonwebtoken = "9"
+argon2 = "0.5"
+rand = "0.8"
 futures = { workspace = true }
 base64 = "0.22"
 pdf-extract = { workspace = true }
 docx-rs = { workspace = true }
 sqlx = { workspace = true }
 chrono = { workspace = true }
+
+[dev-dependencies]
+otl-api = { path = ".", features = ["test-utils"] }

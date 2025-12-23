@@ -1,0 +1,373 @@
+/// Authentication middleware for protecting routes
+///
+/// Extracts and validates JWT tokens from the Authorization header.
+/// On success, adds authenticated user information to request extensions.
+use super::jwt::{validate_access_token, Claims, JwtConfig, JwtError};
+use axum::{
+    body::Body,
+    extract::Request,
+    http::{header, StatusCode},
+    middleware::Next,
+    response::{IntoResponse, Response},
+};
+use serde::{Deserialize, Serialize};
+use thiserror::Error;
+use uuid::Uuid;
+
+/// Authenticated user information extracted from JWT
+///
+/// This is added to request extensions by the auth middleware
+/// and can be extracted in handlers using `Extension<AuthenticatedUser>`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AuthenticatedUser {
+    /// User's unique identifier
+    pub user_id: Uuid,
+    /// User's email address
+    pub email: String,
+    /// User's display name
+    pub name: String,
+    /// User's role (admin, editor, viewer)
+    pub role: String,
+    /// User's department (optional, for ACL filtering)
+    pub department: Option<String>,
+    /// JWT token ID (for blacklist checking)
+    pub jti: String,
+}
+
+impl AuthenticatedUser {
+    /// Check if user has admin role
+    pub fn is_admin(&self) -> bool {
+        self.role == "admin"
+    }
+
+    /// Check if user has editor role or higher
+    pub fn is_editor_or_higher(&self) -> bool {
+        matches!(self.role.as_str(), "admin" | "editor")
+    }
+
+    /// Check if user can access a specific department
+    pub fn can_access_department(&self, dept: &str) -> bool {
+        self.is_admin() || self.department.as_deref() == Some(dept)
+    }
+}
+
+impl From<Claims> for AuthenticatedUser {
+    fn from(claims: Claims) -> Self {
+        Self {
+            user_id: Uuid::parse_str(&claims.sub).unwrap_or_else(|_| Uuid::nil()),
+            email: claims.email,
+            name: claims.name,
+            role: claims.role,
+            department: claims.department,
+            jti: claims.jti,
+        }
+    }
+}
+
+/// Authentication middleware errors
+#[derive(Debug, Error)]
+pub enum AuthError {
+    #[error("Missing Authorization header")]
+    MissingAuthHeader,
+
+    #[error("Invalid Authorization header format")]
+    InvalidAuthHeader,
+
+    #[error("Invalid token: {0}")]
+    InvalidToken(#[from] JwtError),
+
+    #[error("Token has been revoked")]
+    TokenRevoked,
+
+    #[error("Insufficient permissions")]
+    InsufficientPermissions,
+}
+
+impl IntoResponse for AuthError {
+    fn into_response(self) -> Response {
+        let (status, message) = match self {
+            AuthError::MissingAuthHeader => (StatusCode::UNAUTHORIZED, "Missing Authorization header"),
+            AuthError::InvalidAuthHeader => (StatusCode::UNAUTHORIZED, "Invalid Authorization header format"),
+            AuthError::InvalidToken(_) => (StatusCode::UNAUTHORIZED, "Invalid or expired token"),
+            AuthError::TokenRevoked => (StatusCode::UNAUTHORIZED, "Token has been revoked"),
+            AuthError::InsufficientPermissions => (StatusCode::FORBIDDEN, "Insufficient permissions"),
+        };
+
+        let body = serde_json::json!({
+            "error": message,
+            "status": status.as_u16(),
+        });
+
+        (status, axum::Json(body)).into_response()
+    }
+}
+
+/// Authentication middleware that requires a valid JWT token
+///
+/// This middleware:
+/// 1. Extracts the Authorization header
+/// 2. Validates the Bearer token format
+/// 3. Validates the JWT signature and expiration
+/// 4. Adds AuthenticatedUser to request extensions
+///
+/// # Usage
+///
+/// ```ignore
+/// use axum::{Router, routing::get, middleware};
+/// use otl_api::auth::middleware::auth_middleware;
+///
+/// let app = Router::new()
+///     .route("/protected", get(protected_handler))
+///     .route_layer(middleware::from_fn(auth_middleware));
+/// ```
+///
+/// In handlers, extract the user:
+///
+/// ```
+/// use axum::Extension;
+/// use otl_api::auth::middleware::AuthenticatedUser;
+///
+/// async fn protected_handler(
+///     Extension(user): Extension<AuthenticatedUser>
+/// ) -> String {
+///     format!("Hello, {}!", user.name)
+/// }
+/// ```
+pub async fn auth_middleware(mut request: Request<Body>, next: Next) -> Result<Response, AuthError> {
+    // Extract Authorization header
+    let auth_header = request
+        .headers()
+        .get(header::AUTHORIZATION)
+        .ok_or(AuthError::MissingAuthHeader)?
+        .to_str()
+        .map_err(|_| AuthError::InvalidAuthHeader)?;
+
+    // Validate Bearer token format
+    let token = auth_header
+        .strip_prefix("Bearer ")
+        .ok_or(AuthError::InvalidAuthHeader)?;
+
+    // Load JWT configuration (in production, this should come from app state)
+    let config = JwtConfig::from_env();
+
+    // Validate token and extract claims
+    let claims = validate_access_token(&config, token)?;
+
+    // Convert claims to AuthenticatedUser
+    let user = AuthenticatedUser::from(claims);
+
+    // TODO: Check token blacklist (for logout support)
+    // if is_token_blacklisted(&user.jti).await? {
+    //     return Err(AuthError::TokenRevoked);
+    // }
+
+    // Add user to request extensions
+    request.extensions_mut().insert(user);
+
+    // Continue to the next middleware/handler
+    Ok(next.run(request).await)
+}
+
+/// Optional authentication middleware
+///
+/// Unlike `auth_middleware`, this doesn't fail if no token is present.
+/// It only adds the user to extensions if a valid token exists.
+///
+/// Useful for endpoints that behave differently for authenticated users
+/// but are also accessible anonymously.
+pub async fn optional_auth_middleware(
+    mut request: Request<Body>,
+    next: Next,
+) -> Response {
+    // Try to extract Authorization header
+    if let Some(auth_header) = request.headers().get(header::AUTHORIZATION) {
+        if let Ok(auth_str) = auth_header.to_str() {
+            if let Some(token) = auth_str.strip_prefix("Bearer ") {
+                let config = JwtConfig::from_env();
+                if let Ok(claims) = validate_access_token(&config, token) {
+                    let user = AuthenticatedUser::from(claims);
+                    request.extensions_mut().insert(user);
+                }
+            }
+        }
+    }
+
+    next.run(request).await
+}
+
+/// Type alias for role middleware future
+type RoleMiddlewareFuture = std::pin::Pin<Box<dyn std::future::Future<Output = Result<Response, AuthError>> + Send>>;
+
+/// Middleware factory for role-based access control
+///
+/// Returns a middleware that checks if the authenticated user has the required role.
+///
+/// # Example
+///
+/// ```ignore
+/// use axum::{Router, routing::get, middleware};
+/// use otl_api::auth::middleware::{auth_middleware, require_role};
+///
+/// let app = Router::new()
+///     .route("/admin", get(admin_handler))
+///     .route_layer(middleware::from_fn(require_role("admin")))
+///     .route_layer(middleware::from_fn(auth_middleware));
+/// ```
+pub fn require_role(required_role: &'static str) -> impl Fn(Request<Body>, Next) -> RoleMiddlewareFuture + Clone {
+    move |request: Request<Body>, next: Next| {
+        Box::pin(async move {
+            // Extract authenticated user from extensions
+            let user = request
+                .extensions()
+                .get::<AuthenticatedUser>()
+                .ok_or(AuthError::MissingAuthHeader)?
+                .clone();
+
+            // Check role
+            if user.role != required_role && user.role != "admin" {
+                return Err(AuthError::InsufficientPermissions);
+            }
+
+            Ok(next.run(request).await)
+        })
+    }
+}
+
+/// Middleware for requiring any of multiple roles
+///
+/// # Example
+///
+/// ```ignore
+/// use axum::{Router, routing::post, middleware};
+/// use otl_api::auth::middleware::{auth_middleware, require_any_role};
+///
+/// let app = Router::new()
+///     .route("/edit", post(edit_handler))
+///     .route_layer(middleware::from_fn(require_any_role(&["admin", "editor"])))
+///     .route_layer(middleware::from_fn(auth_middleware));
+/// ```
+pub fn require_any_role(required_roles: &'static [&'static str]) -> impl Fn(Request<Body>, Next) -> RoleMiddlewareFuture + Clone {
+    move |request: Request<Body>, next: Next| {
+        Box::pin(async move {
+            let user = request
+                .extensions()
+                .get::<AuthenticatedUser>()
+                .ok_or(AuthError::MissingAuthHeader)?
+                .clone();
+
+            // Admin always has access
+            if user.is_admin() {
+                return Ok(next.run(request).await);
+            }
+
+            // Check if user has any of the required roles
+            if !required_roles.contains(&user.role.as_str()) {
+                return Err(AuthError::InsufficientPermissions);
+            }
+
+            Ok(next.run(request).await)
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_authenticated_user_from_claims() {
+        let claims = Claims {
+            iss: "otl-api".to_string(),
+            sub: Uuid::new_v4().to_string(),
+            jti: Uuid::new_v4().to_string(),
+            iat: 1000,
+            exp: 2000,
+            name: "Test User".to_string(),
+            email: "test@example.com".to_string(),
+            role: "editor".to_string(),
+            department: Some("Engineering".to_string()),
+        };
+
+        let user = AuthenticatedUser::from(claims);
+
+        assert_eq!(user.name, "Test User");
+        assert_eq!(user.email, "test@example.com");
+        assert_eq!(user.role, "editor");
+        assert_eq!(user.department, Some("Engineering".to_string()));
+    }
+
+    #[test]
+    fn test_is_admin() {
+        let admin = AuthenticatedUser {
+            user_id: Uuid::new_v4(),
+            email: "admin@example.com".to_string(),
+            name: "Admin".to_string(),
+            role: "admin".to_string(),
+            department: None,
+            jti: Uuid::new_v4().to_string(),
+        };
+
+        let editor = AuthenticatedUser {
+            user_id: Uuid::new_v4(),
+            email: "editor@example.com".to_string(),
+            name: "Editor".to_string(),
+            role: "editor".to_string(),
+            department: None,
+            jti: Uuid::new_v4().to_string(),
+        };
+
+        assert!(admin.is_admin());
+        assert!(!editor.is_admin());
+    }
+
+    #[test]
+    fn test_is_editor_or_higher() {
+        let roles = vec![
+            ("admin", true),
+            ("editor", true),
+            ("viewer", false),
+        ];
+
+        for (role, expected) in roles {
+            let user = AuthenticatedUser {
+                user_id: Uuid::new_v4(),
+                email: "test@example.com".to_string(),
+                name: "Test".to_string(),
+                role: role.to_string(),
+                department: None,
+                jti: Uuid::new_v4().to_string(),
+            };
+
+            assert_eq!(user.is_editor_or_higher(), expected, "Role: {}", role);
+        }
+    }
+
+    #[test]
+    fn test_can_access_department() {
+        let admin = AuthenticatedUser {
+            user_id: Uuid::new_v4(),
+            email: "admin@example.com".to_string(),
+            name: "Admin".to_string(),
+            role: "admin".to_string(),
+            department: None,
+            jti: Uuid::new_v4().to_string(),
+        };
+
+        let eng_user = AuthenticatedUser {
+            user_id: Uuid::new_v4(),
+            email: "eng@example.com".to_string(),
+            name: "Engineer".to_string(),
+            role: "editor".to_string(),
+            department: Some("Engineering".to_string()),
+            jti: Uuid::new_v4().to_string(),
+        };
+
+        // Admin can access any department
+        assert!(admin.can_access_department("Engineering"));
+        assert!(admin.can_access_department("HR"));
+
+        // User can access their own department
+        assert!(eng_user.can_access_department("Engineering"));
+        assert!(!eng_user.can_access_department("HR"));
+    }
+}
