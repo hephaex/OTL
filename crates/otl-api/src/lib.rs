@@ -28,6 +28,11 @@ use utoipa_swagger_ui::SwaggerUi;
 #[derive(OpenApi)]
 #[openapi(
     paths(
+        handlers::auth::register_handler,
+        handlers::auth::login_handler,
+        handlers::auth::refresh_handler,
+        handlers::auth::logout_handler,
+        handlers::auth::me_handler,
         handlers::query::query_handler,
         handlers::query::query_stream_handler,
         handlers::documents::list_documents,
@@ -45,6 +50,14 @@ use utoipa_swagger_ui::SwaggerUi;
     ),
     components(
         schemas(
+            auth::RegisterRequest,
+            auth::LoginRequest,
+            auth::RefreshRequest,
+            auth::LogoutRequest,
+            auth::AuthResponse,
+            auth::UserInfo,
+            handlers::auth::RegisterResponse,
+            handlers::auth::LogoutResponse,
             handlers::query::QueryRequest,
             handlers::query::QueryResponse,
             handlers::query::Citation,
@@ -61,12 +74,14 @@ use utoipa_swagger_ui::SwaggerUi;
         )
     ),
     tags(
+        (name = "auth", description = "Authentication and authorization"),
         (name = "query", description = "RAG query endpoints"),
         (name = "documents", description = "Document management"),
         (name = "graph", description = "Knowledge graph operations"),
         (name = "verify", description = "HITL verification"),
         (name = "health", description = "Health checks"),
     ),
+    modifiers(&SecurityAddon),
     info(
         title = "OTL API",
         version = "1.0.0",
@@ -76,6 +91,25 @@ use utoipa_swagger_ui::SwaggerUi;
     )
 )]
 pub struct ApiDoc;
+
+/// Security scheme for OpenAPI
+struct SecurityAddon;
+
+impl utoipa::Modify for SecurityAddon {
+    fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
+        if let Some(components) = openapi.components.as_mut() {
+            let mut http = utoipa::openapi::security::Http::new(
+                utoipa::openapi::security::HttpAuthScheme::Bearer,
+            );
+            http.bearer_format = Some("JWT".to_string());
+
+            components.add_security_scheme(
+                "bearer_auth",
+                utoipa::openapi::security::SecurityScheme::Http(http),
+            );
+        }
+    }
+}
 
 /// Create the main router with all routes
 pub fn create_router(state: Arc<AppState>) -> Router {

@@ -2,9 +2,11 @@
 //!
 //! Author: hephaex@gmail.com
 
-use crate::handlers::{documents, graph, query, verify};
+use crate::auth::middleware::auth_middleware;
+use crate::handlers::{auth, documents, graph, query, verify};
 use crate::state::AppState;
 use axum::{
+    middleware,
     routing::{delete, get, post, put},
     Router,
 };
@@ -12,7 +14,16 @@ use std::sync::Arc;
 
 /// Create API v1 routes
 pub fn api_routes() -> Router<Arc<AppState>> {
-    Router::new()
+    // Public routes (no authentication required)
+    let public_routes = Router::new()
+        .route("/auth/register", post(auth::register_handler))
+        .route("/auth/login", post(auth::login_handler))
+        .route("/auth/refresh", post(auth::refresh_handler));
+
+    // Protected routes (authentication required)
+    let protected_routes = Router::new()
+        .route("/auth/logout", post(auth::logout_handler))
+        .route("/auth/me", get(auth::me_handler))
         // Query endpoints
         .route("/query", post(query::query_handler))
         .route("/query/stream", post(query::query_stream_handler))
@@ -33,4 +44,10 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         .route("/verify/:id/approve", post(verify::approve_extraction))
         .route("/verify/:id/reject", post(verify::reject_extraction))
         .route("/verify/stats", get(verify::get_stats))
+        .layer(middleware::from_fn(auth_middleware));
+
+    // Combine routes
+    Router::new()
+        .merge(public_routes)
+        .merge(protected_routes)
 }

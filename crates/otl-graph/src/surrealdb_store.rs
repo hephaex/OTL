@@ -49,6 +49,13 @@ impl SurrealDbStore {
         Ok(Self { client })
     }
 
+    /// Get a reference to the SurrealDB client
+    ///
+    /// This allows direct access to the SurrealDB client for custom queries.
+    pub fn client(&self) -> &Surreal<Client> {
+        &self.client
+    }
+
     /// Initialize schema (run once on setup)
     pub async fn init_schema(&self) -> Result<()> {
         // Define entity table
