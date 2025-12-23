@@ -2,13 +2,14 @@
 //!
 //! Author: hephaex@gmail.com
 
+use crate::auth::middleware::AuthenticatedUser;
 use crate::error::AppError;
 use crate::state::AppState;
 use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
-    Json,
+    Extension, Json,
 };
 use otl_graph::GraphStore;
 use serde::{Deserialize, Serialize};
@@ -127,14 +128,18 @@ pub async fn list_entities(
         graph_db.find_by_class(entity_type, limit).await
     } else if let Some(search_term) = params.search.as_ref() {
         // Search in entity text/name
-        graph_db.query(&format!(
-            "SELECT * FROM entity WHERE properties.text CONTAINS '{}' LIMIT {}",
-            search_term.replace('\'', "\\'"),
-            limit
-        )).await
+        graph_db
+            .query(&format!(
+                "SELECT * FROM entity WHERE properties.text CONTAINS '{}' LIMIT {}",
+                search_term.replace('\'', "\\'"),
+                limit
+            ))
+            .await
     } else {
         // Get all entities with limit
-        graph_db.query(&format!("SELECT * FROM entity LIMIT {limit}")).await
+        graph_db
+            .query(&format!("SELECT * FROM entity LIMIT {limit}"))
+            .await
     };
 
     let entities = entities_result
@@ -144,7 +149,9 @@ pub async fn list_entities(
     let mut entity_infos = Vec::new();
     for entity in entities {
         // Get relation count for this entity
-        let relation_count = count_entity_relations(&**graph_db, entity.id).await.unwrap_or(0);
+        let relation_count = count_entity_relations(&**graph_db, entity.id)
+            .await
+            .unwrap_or(0);
 
         // Extract name from properties
         let name = extract_entity_name(&entity.properties);
@@ -272,7 +279,7 @@ async fn get_entity_relations(
 
         // Create a relation (we don't have full relation data from traverse)
         let relation = RelationInfo {
-            id: Uuid::new_v4(), // Would be actual relation ID
+            id: Uuid::new_v4(),                   // Would be actual relation ID
             relation_type: "relates".to_string(), // Would be actual predicate
             source_id: entity_id,
             source_name: entity_name.to_string(),
@@ -409,7 +416,9 @@ pub async fn search_graph(
                 .map_err(|e| AppError::Internal(format!("Traversal failed: {e}")))?;
 
             for rel_entity in related {
-                if let std::collections::hash_map::Entry::Vacant(e) = entity_map.entry(rel_entity.id) {
+                if let std::collections::hash_map::Entry::Vacant(e) =
+                    entity_map.entry(rel_entity.id)
+                {
                     let name = extract_entity_name(&rel_entity.properties);
                     e.insert(name);
                     all_entities.push(rel_entity);
@@ -591,12 +600,17 @@ pub struct UpdateOntologyRequest {
 /// Update ontology (admin only)
 pub async fn update_ontology(
     State(state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedUser>,
     Json(req): Json<UpdateOntologyRequest>,
 ) -> Result<impl IntoResponse, AppError> {
     state.increment_requests();
 
-    // TODO: Add proper authentication and admin role check
-    // For now, this is a placeholder that validates the request structure
+    // Check admin role
+    if !user.is_admin() {
+        return Err(AppError::Forbidden(
+            "Admin role required for ontology updates".to_string(),
+        ));
+    }
 
     // Validate classes if provided
     if let Some(classes) = &req.classes {
@@ -610,7 +624,7 @@ pub async fn update_ontology(
         for class in classes {
             if class.name.is_empty() || class.label.is_empty() {
                 return Err(AppError::BadRequest(
-                    "Invalid class definition: name and label are required".to_string()
+                    "Invalid class definition: name and label are required".to_string(),
                 ));
             }
         }
@@ -632,7 +646,7 @@ pub async fn update_ontology(
                 || prop.range.is_empty()
             {
                 return Err(AppError::BadRequest(
-                    "Invalid property definition: all fields are required".to_string()
+                    "Invalid property definition: all fields are required".to_string(),
                 ));
             }
         }

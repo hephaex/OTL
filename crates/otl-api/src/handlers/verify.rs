@@ -2,13 +2,14 @@
 //!
 //! Author: hephaex@gmail.com
 
+use crate::auth::middleware::AuthenticatedUser;
 use crate::error::AppError;
 use crate::state::AppState;
 use axum::{
     extract::{Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
-    Json,
+    Extension, Json,
 };
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -177,54 +178,46 @@ pub async fn list_pending(
     }
 
     let rows: Vec<ExtractionRow> = match (params.document_id, params.max_confidence) {
-        (Some(doc_id), Some(max_conf)) => {
-            sqlx::query_as(&query)
-                .bind(doc_id)
-                .bind(max_conf)
-                .bind(page_size as i64)
-                .bind(offset)
-                .fetch_all(&state.db_pool)
-                .await
-                .map_err(|e| {
-                    tracing::error!("Database query failed: {}", e);
-                    AppError::Internal(format!("Failed to fetch pending extractions: {e}"))
-                })?
-        }
-        (Some(doc_id), None) => {
-            sqlx::query_as(&query)
-                .bind(doc_id)
-                .bind(page_size as i64)
-                .bind(offset)
-                .fetch_all(&state.db_pool)
-                .await
-                .map_err(|e| {
-                    tracing::error!("Database query failed: {}", e);
-                    AppError::Internal(format!("Failed to fetch pending extractions: {e}"))
-                })?
-        }
-        (None, Some(max_conf)) => {
-            sqlx::query_as(&query)
-                .bind(max_conf)
-                .bind(page_size as i64)
-                .bind(offset)
-                .fetch_all(&state.db_pool)
-                .await
-                .map_err(|e| {
-                    tracing::error!("Database query failed: {}", e);
-                    AppError::Internal(format!("Failed to fetch pending extractions: {e}"))
-                })?
-        }
-        (None, None) => {
-            sqlx::query_as(&query)
-                .bind(page_size as i64)
-                .bind(offset)
-                .fetch_all(&state.db_pool)
-                .await
-                .map_err(|e| {
-                    tracing::error!("Database query failed: {}", e);
-                    AppError::Internal(format!("Failed to fetch pending extractions: {e}"))
-                })?
-        }
+        (Some(doc_id), Some(max_conf)) => sqlx::query_as(&query)
+            .bind(doc_id)
+            .bind(max_conf)
+            .bind(page_size as i64)
+            .bind(offset)
+            .fetch_all(&state.db_pool)
+            .await
+            .map_err(|e| {
+                tracing::error!("Database query failed: {}", e);
+                AppError::Internal(format!("Failed to fetch pending extractions: {e}"))
+            })?,
+        (Some(doc_id), None) => sqlx::query_as(&query)
+            .bind(doc_id)
+            .bind(page_size as i64)
+            .bind(offset)
+            .fetch_all(&state.db_pool)
+            .await
+            .map_err(|e| {
+                tracing::error!("Database query failed: {}", e);
+                AppError::Internal(format!("Failed to fetch pending extractions: {e}"))
+            })?,
+        (None, Some(max_conf)) => sqlx::query_as(&query)
+            .bind(max_conf)
+            .bind(page_size as i64)
+            .bind(offset)
+            .fetch_all(&state.db_pool)
+            .await
+            .map_err(|e| {
+                tracing::error!("Database query failed: {}", e);
+                AppError::Internal(format!("Failed to fetch pending extractions: {e}"))
+            })?,
+        (None, None) => sqlx::query_as(&query)
+            .bind(page_size as i64)
+            .bind(offset)
+            .fetch_all(&state.db_pool)
+            .await
+            .map_err(|e| {
+                tracing::error!("Database query failed: {}", e);
+                AppError::Internal(format!("Failed to fetch pending extractions: {e}"))
+            })?,
     };
 
     // Get total count for pagination
@@ -252,7 +245,9 @@ pub async fn list_pending(
             if let Some(entities) = row.extracted_entities.as_array() {
                 for entity in entities {
                     if entity.as_object().is_some() {
-                        if let Ok(content) = serde_json::from_value::<ExtractedContent>(entity.clone()) {
+                        if let Ok(content) =
+                            serde_json::from_value::<ExtractedContent>(entity.clone())
+                        {
                             results.push(PendingExtraction {
                                 id: row.id,
                                 document_id: row.document_id,
@@ -273,7 +268,9 @@ pub async fn list_pending(
             if let Some(relations) = row.extracted_relations.as_array() {
                 for relation in relations {
                     if relation.as_object().is_some() {
-                        if let Ok(content) = serde_json::from_value::<ExtractedContent>(relation.clone()) {
+                        if let Ok(content) =
+                            serde_json::from_value::<ExtractedContent>(relation.clone())
+                        {
                             results.push(PendingExtraction {
                                 id: row.id,
                                 document_id: row.document_id,
@@ -338,6 +335,7 @@ pub struct VerifyResponse {
 )]
 pub async fn approve_extraction(
     State(state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedUser>,
     Path(id): Path<Uuid>,
     Json(action): Json<VerifyAction>,
 ) -> Result<impl IntoResponse, AppError> {
@@ -363,9 +361,8 @@ pub async fn approve_extraction(
     .await
     .map_err(|e| AppError::Internal(format!("Failed to fetch extraction: {e}")))?;
 
-    let (current_status, mut entities, mut relations) = extraction.ok_or_else(|| {
-        AppError::NotFound(format!("Extraction {id} not found"))
-    })?;
+    let (current_status, mut entities, mut relations) =
+        extraction.ok_or_else(|| AppError::NotFound(format!("Extraction {id} not found")))?;
 
     if current_status != "pending" {
         return Err(AppError::BadRequest(format!(
@@ -378,13 +375,11 @@ pub async fn approve_extraction(
         match correction {
             ExtractedContent::Entity { .. } => {
                 // Replace entities with corrected version
-                entities = serde_json::to_value(vec![correction])
-                    .unwrap_or(serde_json::json!([]));
+                entities = serde_json::to_value(vec![correction]).unwrap_or(serde_json::json!([]));
             }
             ExtractedContent::Relation { .. } => {
                 // Replace relations with corrected version
-                relations = serde_json::to_value(vec![correction])
-                    .unwrap_or(serde_json::json!([]));
+                relations = serde_json::to_value(vec![correction]).unwrap_or(serde_json::json!([]));
             }
         }
     }
@@ -405,7 +400,7 @@ pub async fn approve_extraction(
         WHERE id = $6
         "#,
     )
-    .bind("system") // TODO: Get from auth context
+    .bind(user.user_id.to_string())
     .bind(notes_value)
     .bind(now)
     .bind(entities)
@@ -461,6 +456,7 @@ pub struct RejectAction {
 )]
 pub async fn reject_extraction(
     State(state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedUser>,
     Path(id): Path<Uuid>,
     Json(action): Json<RejectAction>,
 ) -> Result<impl IntoResponse, AppError> {
@@ -486,9 +482,8 @@ pub async fn reject_extraction(
     .await
     .map_err(|e| AppError::Internal(format!("Failed to fetch extraction: {e}")))?;
 
-    let status = current_status.ok_or_else(|| {
-        AppError::NotFound(format!("Extraction {id} not found"))
-    })?;
+    let status =
+        current_status.ok_or_else(|| AppError::NotFound(format!("Extraction {id} not found")))?;
 
     if status != "pending" {
         return Err(AppError::BadRequest(format!(
@@ -498,7 +493,11 @@ pub async fn reject_extraction(
 
     // Update extraction status to rejected
     let now = Utc::now();
-    let review_notes = format!("REJECTED: {}\n{}", action.reason, action.notes.unwrap_or_default());
+    let review_notes = format!(
+        "REJECTED: {}\n{}",
+        action.reason,
+        action.notes.unwrap_or_default()
+    );
 
     let result = sqlx::query(
         r#"
@@ -510,7 +509,7 @@ pub async fn reject_extraction(
         WHERE id = $4
         "#,
     )
-    .bind("system") // TODO: Get from auth context
+    .bind(user.user_id.to_string())
     .bind(review_notes)
     .bind(now)
     .bind(id)

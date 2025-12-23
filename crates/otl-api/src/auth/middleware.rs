@@ -11,8 +11,20 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
+use std::sync::Mutex;
 use thiserror::Error;
 use uuid::Uuid;
+
+/// In-memory token blacklist for single-instance deployments
+///
+/// This stores revoked JWT IDs (JTI) in memory. For multi-instance
+/// deployments, upgrade to Redis or database-backed storage.
+///
+/// # Thread Safety
+///
+/// Uses Mutex to ensure thread-safe access across async tasks.
+static TOKEN_BLACKLIST: Mutex<Option<HashSet<String>>> = Mutex::new(None);
 
 /// Authenticated user information extracted from JWT
 ///
@@ -86,11 +98,18 @@ pub enum AuthError {
 impl IntoResponse for AuthError {
     fn into_response(self) -> Response {
         let (status, message) = match self {
-            AuthError::MissingAuthHeader => (StatusCode::UNAUTHORIZED, "Missing Authorization header"),
-            AuthError::InvalidAuthHeader => (StatusCode::UNAUTHORIZED, "Invalid Authorization header format"),
+            AuthError::MissingAuthHeader => {
+                (StatusCode::UNAUTHORIZED, "Missing Authorization header")
+            }
+            AuthError::InvalidAuthHeader => (
+                StatusCode::UNAUTHORIZED,
+                "Invalid Authorization header format",
+            ),
             AuthError::InvalidToken(_) => (StatusCode::UNAUTHORIZED, "Invalid or expired token"),
             AuthError::TokenRevoked => (StatusCode::UNAUTHORIZED, "Token has been revoked"),
-            AuthError::InsufficientPermissions => (StatusCode::FORBIDDEN, "Insufficient permissions"),
+            AuthError::InsufficientPermissions => {
+                (StatusCode::FORBIDDEN, "Insufficient permissions")
+            }
         };
 
         let body = serde_json::json!({
@@ -133,7 +152,10 @@ impl IntoResponse for AuthError {
 ///     format!("Hello, {}!", user.name)
 /// }
 /// ```
-pub async fn auth_middleware(mut request: Request<Body>, next: Next) -> Result<Response, AuthError> {
+pub async fn auth_middleware(
+    mut request: Request<Body>,
+    next: Next,
+) -> Result<Response, AuthError> {
     // Extract Authorization header
     let auth_header = request
         .headers()
@@ -156,10 +178,10 @@ pub async fn auth_middleware(mut request: Request<Body>, next: Next) -> Result<R
     // Convert claims to AuthenticatedUser
     let user = AuthenticatedUser::from(claims);
 
-    // TODO: Check token blacklist (for logout support)
-    // if is_token_blacklisted(&user.jti).await? {
-    //     return Err(AuthError::TokenRevoked);
-    // }
+    // Check token blacklist (for logout support)
+    if is_token_revoked(&user.jti) {
+        return Err(AuthError::TokenRevoked);
+    }
 
     // Add user to request extensions
     request.extensions_mut().insert(user);
@@ -175,10 +197,7 @@ pub async fn auth_middleware(mut request: Request<Body>, next: Next) -> Result<R
 ///
 /// Useful for endpoints that behave differently for authenticated users
 /// but are also accessible anonymously.
-pub async fn optional_auth_middleware(
-    mut request: Request<Body>,
-    next: Next,
-) -> Response {
+pub async fn optional_auth_middleware(mut request: Request<Body>, next: Next) -> Response {
     // Try to extract Authorization header
     if let Some(auth_header) = request.headers().get(header::AUTHORIZATION) {
         if let Ok(auth_str) = auth_header.to_str() {
@@ -196,7 +215,8 @@ pub async fn optional_auth_middleware(
 }
 
 /// Type alias for role middleware future
-type RoleMiddlewareFuture = std::pin::Pin<Box<dyn std::future::Future<Output = Result<Response, AuthError>> + Send>>;
+type RoleMiddlewareFuture =
+    std::pin::Pin<Box<dyn std::future::Future<Output = Result<Response, AuthError>> + Send>>;
 
 /// Middleware factory for role-based access control
 ///
@@ -213,7 +233,9 @@ type RoleMiddlewareFuture = std::pin::Pin<Box<dyn std::future::Future<Output = R
 ///     .route_layer(middleware::from_fn(require_role("admin")))
 ///     .route_layer(middleware::from_fn(auth_middleware));
 /// ```
-pub fn require_role(required_role: &'static str) -> impl Fn(Request<Body>, Next) -> RoleMiddlewareFuture + Clone {
+pub fn require_role(
+    required_role: &'static str,
+) -> impl Fn(Request<Body>, Next) -> RoleMiddlewareFuture + Clone {
     move |request: Request<Body>, next: Next| {
         Box::pin(async move {
             // Extract authenticated user from extensions
@@ -246,7 +268,9 @@ pub fn require_role(required_role: &'static str) -> impl Fn(Request<Body>, Next)
 ///     .route_layer(middleware::from_fn(require_any_role(&["admin", "editor"])))
 ///     .route_layer(middleware::from_fn(auth_middleware));
 /// ```
-pub fn require_any_role(required_roles: &'static [&'static str]) -> impl Fn(Request<Body>, Next) -> RoleMiddlewareFuture + Clone {
+pub fn require_any_role(
+    required_roles: &'static [&'static str],
+) -> impl Fn(Request<Body>, Next) -> RoleMiddlewareFuture + Clone {
     move |request: Request<Body>, next: Next| {
         Box::pin(async move {
             let user = request
@@ -267,6 +291,81 @@ pub fn require_any_role(required_roles: &'static [&'static str]) -> impl Fn(Requ
 
             Ok(next.run(request).await)
         })
+    }
+}
+
+/// Add a token to the blacklist by its JTI
+///
+/// This revokes the token, preventing it from being used for authentication
+/// even if it hasn't expired yet. Used for logout functionality.
+///
+/// # Arguments
+///
+/// * `jti` - JWT ID from the token claims
+///
+/// # Example
+///
+/// ```ignore
+/// use otl_api::auth::middleware::revoke_token;
+///
+/// // In logout handler
+/// revoke_token(&user.jti);
+/// ```
+///
+/// # Thread Safety
+///
+/// This function is thread-safe and can be called from multiple async tasks.
+pub fn revoke_token(jti: &str) {
+    let mut blacklist = TOKEN_BLACKLIST.lock().unwrap();
+    if blacklist.is_none() {
+        *blacklist = Some(HashSet::new());
+    }
+    if let Some(ref mut set) = *blacklist {
+        set.insert(jti.to_string());
+    }
+}
+
+/// Check if a token is revoked by its JTI
+///
+/// Returns true if the token has been revoked, false otherwise.
+///
+/// # Arguments
+///
+/// * `jti` - JWT ID from the token claims
+///
+/// # Returns
+///
+/// * `true` - Token is revoked and should not be accepted
+/// * `false` - Token is valid (not revoked)
+///
+/// # Thread Safety
+///
+/// This function is thread-safe and can be called from multiple async tasks.
+pub fn is_token_revoked(jti: &str) -> bool {
+    let mut blacklist = TOKEN_BLACKLIST.lock().unwrap();
+    if blacklist.is_none() {
+        *blacklist = Some(HashSet::new());
+        return false;
+    }
+    blacklist
+        .as_ref()
+        .map(|set| set.contains(jti))
+        .unwrap_or(false)
+}
+
+/// Clear all revoked tokens from the blacklist
+///
+/// This is primarily useful for testing or if you want to start fresh.
+/// In production, consider implementing a cleanup strategy based on
+/// token expiration times instead.
+///
+/// # Thread Safety
+///
+/// This function is thread-safe and can be called from multiple async tasks.
+pub fn clear_blacklist() {
+    let mut blacklist = TOKEN_BLACKLIST.lock().unwrap();
+    if let Some(ref mut set) = *blacklist {
+        set.clear();
     }
 }
 
@@ -322,11 +421,7 @@ mod tests {
 
     #[test]
     fn test_is_editor_or_higher() {
-        let roles = vec![
-            ("admin", true),
-            ("editor", true),
-            ("viewer", false),
-        ];
+        let roles = vec![("admin", true), ("editor", true), ("viewer", false)];
 
         for (role, expected) in roles {
             let user = AuthenticatedUser {
@@ -369,5 +464,47 @@ mod tests {
         // User can access their own department
         assert!(eng_user.can_access_department("Engineering"));
         assert!(!eng_user.can_access_department("HR"));
+    }
+
+    #[test]
+    fn test_token_blacklist() {
+        // Clear blacklist before test
+        clear_blacklist();
+
+        let jti1 = Uuid::new_v4().to_string();
+        let jti2 = Uuid::new_v4().to_string();
+
+        // Initially, tokens should not be revoked
+        assert!(!is_token_revoked(&jti1));
+        assert!(!is_token_revoked(&jti2));
+
+        // Revoke first token
+        revoke_token(&jti1);
+        assert!(is_token_revoked(&jti1));
+        assert!(!is_token_revoked(&jti2));
+
+        // Revoke second token
+        revoke_token(&jti2);
+        assert!(is_token_revoked(&jti1));
+        assert!(is_token_revoked(&jti2));
+
+        // Clear blacklist
+        clear_blacklist();
+        assert!(!is_token_revoked(&jti1));
+        assert!(!is_token_revoked(&jti2));
+    }
+
+    #[test]
+    fn test_revoke_same_token_twice() {
+        clear_blacklist();
+
+        let jti = Uuid::new_v4().to_string();
+
+        // Revoke token twice
+        revoke_token(&jti);
+        revoke_token(&jti);
+
+        // Should still be revoked
+        assert!(is_token_revoked(&jti));
     }
 }

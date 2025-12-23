@@ -257,10 +257,13 @@ mod tests {
 
     #[test]
     fn test_expired_token() {
-        use jsonwebtoken::{encode, Header, Algorithm, EncodingKey};
+        use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
 
         let config = JwtConfig::default();
-        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
 
         // Create a token that expired 1 hour ago
         let claims = Claims {

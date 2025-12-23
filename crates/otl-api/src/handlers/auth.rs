@@ -5,16 +5,11 @@
 //! Author: hephaex@gmail.com
 
 use crate::auth::{
-    AuthenticatedUser, AuthService, LoginRequest, LogoutRequest, RefreshRequest,
-    RegisterRequest,
+    AuthService, AuthenticatedUser, LoginRequest, LogoutRequest, RefreshRequest, RegisterRequest,
 };
 use crate::error::AppError;
 use crate::state::AppState;
-use axum::{
-    extract::State,
-    response::IntoResponse,
-    Extension, Json,
-};
+use axum::{extract::State, response::IntoResponse, Extension, Json};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use utoipa::ToSchema;
@@ -189,7 +184,9 @@ pub async fn logout_handler(
     Json(request): Json<LogoutRequest>,
 ) -> Result<impl IntoResponse, AppError> {
     let auth_service = AuthService::new(state.db_pool.clone());
-    auth_service.logout(user.user_id, &user.jti, request).await?;
+    auth_service
+        .logout(user.user_id, &user.jti, request)
+        .await?;
 
     Ok(Json(LogoutResponse {
         message: "Logged out successfully".to_string(),

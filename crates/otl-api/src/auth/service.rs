@@ -240,13 +240,15 @@ impl AuthService {
                 None
             };
 
-            sqlx::query("UPDATE users SET failed_login_attempts = $1, locked_until = $2 WHERE id = $3")
-                .bind(failed_attempts)
-                .bind(locked_until)
-                .bind(user.id)
-                .execute(&self.db_pool)
-                .await
-                .ok(); // Ignore errors here
+            sqlx::query(
+                "UPDATE users SET failed_login_attempts = $1, locked_until = $2 WHERE id = $3",
+            )
+            .bind(failed_attempts)
+            .bind(locked_until)
+            .bind(user.id)
+            .execute(&self.db_pool)
+            .await
+            .ok(); // Ignore errors here
 
             return Err(AppError::Unauthorized);
         }
@@ -451,6 +453,9 @@ impl AuthService {
             .execute(&self.db_pool)
             .await
             .ok(); // Ignore errors
+
+        // Also add to in-memory blacklist for immediate effect
+        crate::auth::revoke_token(jti);
 
         Ok(())
     }

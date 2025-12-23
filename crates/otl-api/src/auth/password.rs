@@ -121,11 +121,7 @@ pub fn hash_password_with_config(
 
     // Create Argon2 instance with custom parameters
     let params = config.to_params()?;
-    let argon2 = Argon2::new(
-        argon2::Algorithm::Argon2id,
-        argon2::Version::V0x13,
-        params,
-    );
+    let argon2 = Argon2::new(argon2::Algorithm::Argon2id, argon2::Version::V0x13, params);
 
     // Hash the password
     let password_hash = argon2
@@ -164,8 +160,7 @@ pub fn hash_password_with_config(
 /// ```
 pub fn verify_password(password: &str, hash: &str) -> Result<bool, PasswordError> {
     // Parse the PHC string
-    let parsed_hash = PasswordHash::new(hash)
-        .map_err(|_| PasswordError::InvalidHashFormat)?;
+    let parsed_hash = PasswordHash::new(hash).map_err(|_| PasswordError::InvalidHashFormat)?;
 
     // Create Argon2 instance for verification
     let argon2 = Argon2::default();

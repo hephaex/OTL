@@ -116,7 +116,9 @@ pub fn create_router(state: Arc<AppState>) -> Router {
     // Configure CORS based on config
     let cors = if state.config.server.cors_origins.is_empty() {
         // Empty origins = allow all (for development)
-        tracing::warn!("CORS_ORIGINS not set, allowing all origins (not recommended for production)");
+        tracing::warn!(
+            "CORS_ORIGINS not set, allowing all origins (not recommended for production)"
+        );
         CorsLayer::new()
             .allow_origin(Any)
             .allow_methods(Any)

@@ -132,7 +132,7 @@ pub async fn list_documents(
                 d.created_at, d.updated_at, COUNT(dc.id) as chunk_count
          FROM documents d
          LEFT JOIN document_chunks dc ON d.id = dc.document_id
-         WHERE d.deleted_at IS NULL"
+         WHERE d.deleted_at IS NULL",
     );
 
     let mut conditions = Vec::new();
@@ -304,7 +304,7 @@ pub async fn get_document(
          FROM documents d
          LEFT JOIN document_chunks dc ON d.id = dc.document_id
          WHERE d.id = $1 AND d.deleted_at IS NULL
-         GROUP BY d.id"
+         GROUP BY d.id",
     )
     .bind(id)
     .fetch_optional(&state.db_pool)
@@ -319,7 +319,7 @@ pub async fn get_document(
         owner_id: None, // Would need to fetch from DB if needed
         department: row.department.clone(),
         required_roles: Vec::new(), // Would need to fetch from DB if needed
-        allowed_users: Vec::new(), // Would need to fetch from DB if needed
+        allowed_users: Vec::new(),  // Would need to fetch from DB if needed
     };
 
     if !acl.can_access(&user) {
@@ -697,7 +697,7 @@ pub async fn delete_document(
     let doc: Option<DocCheck> = sqlx::query_as(
         "SELECT id, access_level::text, owner_id, department
          FROM documents
-         WHERE id = $1 AND deleted_at IS NULL"
+         WHERE id = $1 AND deleted_at IS NULL",
     )
     .bind(id)
     .fetch_optional(&state.db_pool)
@@ -740,13 +740,11 @@ pub async fn delete_document(
     }
 
     // Soft delete the document (cascade will handle chunks via ON DELETE CASCADE)
-    let result = sqlx::query(
-        "UPDATE documents SET deleted_at = NOW() WHERE id = $1"
-    )
-    .bind(id)
-    .execute(&state.db_pool)
-    .await
-    .map_err(|e| AppError::Database(format!("Failed to delete document: {e}")))?;
+    let result = sqlx::query("UPDATE documents SET deleted_at = NOW() WHERE id = $1")
+        .bind(id)
+        .execute(&state.db_pool)
+        .await
+        .map_err(|e| AppError::Database(format!("Failed to delete document: {e}")))?;
 
     if result.rows_affected() == 0 {
         return Err(AppError::NotFound(format!("Document {id} not found")));

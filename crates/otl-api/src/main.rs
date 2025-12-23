@@ -127,7 +127,10 @@ async fn main() -> anyhow::Result<()> {
             match GraphSearchBackend::new(&config.database).await {
                 Ok(search_backend) => {
                     tracing::info!("Graph search backend initialized");
-                    (Some(Arc::new(search_backend) as Arc<dyn otl_core::SearchBackend>), Some(db_arc))
+                    (
+                        Some(Arc::new(search_backend) as Arc<dyn otl_core::SearchBackend>),
+                        Some(db_arc),
+                    )
                 }
                 Err(e) => {
                     tracing::warn!("Failed to create graph search backend: {}", e);

@@ -16,7 +16,10 @@ pub mod repository;
 pub mod service;
 
 pub use jwt::{generate_access_token, validate_access_token, Claims, JwtConfig};
-pub use middleware::{auth_middleware, optional_auth_middleware, AuthError, AuthenticatedUser};
+pub use middleware::{
+    auth_middleware, clear_blacklist, is_token_revoked, optional_auth_middleware, revoke_token,
+    AuthError, AuthenticatedUser,
+};
 pub use models::{
     CreateUserRequest, RefreshToken, TokenBlacklist, UpdateUserRequest, User, UserPublic, UserRole,
 };

@@ -362,14 +362,16 @@ impl LlmClient for OllamaClient {
         }
 
         // Convert bytes stream into async reader
-        let stream_reader =
-            tokio_util::io::StreamReader::new(response.bytes_stream().map(|result| {
-                result.map_err(std::io::Error::other)
-            }));
+        let stream_reader = tokio_util::io::StreamReader::new(
+            response
+                .bytes_stream()
+                .map(|result| result.map_err(std::io::Error::other)),
+        );
 
         // Use LinesCodec to properly frame the stream by lines
         // Limit max line length to 64KB to prevent DoS attacks from malicious servers
-        let lines_stream = FramedRead::new(stream_reader, LinesCodec::new_with_max_length(64 * 1024));
+        let lines_stream =
+            FramedRead::new(stream_reader, LinesCodec::new_with_max_length(64 * 1024));
 
         // Process each line and extract the response field
         let mapped_stream = lines_stream.filter_map(|result| async move {

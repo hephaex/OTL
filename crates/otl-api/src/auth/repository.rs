@@ -135,7 +135,10 @@ impl UserRepository {
             .take(0)
             .map_err(|e| RepositoryError::DatabaseError(e.to_string()))?;
 
-        users.into_iter().next().ok_or(RepositoryError::UserNotFound)
+        users
+            .into_iter()
+            .next()
+            .ok_or(RepositoryError::UserNotFound)
     }
 
     /// Find user by ID
@@ -338,7 +341,11 @@ impl UserRepository {
         let query = format!("UPDATE $user_id SET {}", updates.join(", "));
 
         // Build query with all bindings
-        let mut query_builder = self.db.client().query(&query).bind(("user_id", user_id.to_string()));
+        let mut query_builder = self
+            .db
+            .client()
+            .query(&query)
+            .bind(("user_id", user_id.to_string()));
 
         if let Some(n) = name {
             query_builder = query_builder.bind(("name", n.to_string()));
@@ -377,7 +384,11 @@ impl UserRepository {
     /// # Returns
     ///
     /// * `Ok(Vec<User>)` - List of users
-    pub async fn list_users(&self, limit: usize, offset: usize) -> Result<Vec<User>, RepositoryError> {
+    pub async fn list_users(
+        &self,
+        limit: usize,
+        offset: usize,
+    ) -> Result<Vec<User>, RepositoryError> {
         let query = "SELECT * FROM users ORDER BY created_at DESC LIMIT $limit START $offset";
 
         let mut result = self
@@ -496,7 +507,10 @@ impl RefreshTokenRepository {
             .take(0)
             .map_err(|e| RepositoryError::DatabaseError(e.to_string()))?;
 
-        tokens.into_iter().next().ok_or(RepositoryError::TokenNotFound)
+        tokens
+            .into_iter()
+            .next()
+            .ok_or(RepositoryError::TokenNotFound)
     }
 
     /// Revoke a refresh token

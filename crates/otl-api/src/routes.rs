@@ -47,7 +47,5 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         .layer(middleware::from_fn(auth_middleware));
 
     // Combine routes
-    Router::new()
-        .merge(public_routes)
-        .merge(protected_routes)
+    Router::new().merge(public_routes).merge(protected_routes)
 }
