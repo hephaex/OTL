@@ -4,12 +4,18 @@
 //!
 //! Author: hephaex@gmail.com
 
+use crate::audit::{audit_log, extract_ip_address, extract_user_agent, AuditEvent};
 use crate::auth::{
     AuthService, AuthenticatedUser, LoginRequest, LogoutRequest, RefreshRequest, RegisterRequest,
 };
 use crate::error::AppError;
 use crate::state::AppState;
-use axum::{extract::State, response::IntoResponse, Extension, Json};
+use axum::{
+    body::Body,
+    extract::{FromRequest, Request, State},
+    response::IntoResponse,
+    Extension, Json,
+};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use utoipa::ToSchema;
@@ -60,20 +66,59 @@ pub struct LogoutResponse {
 )]
 pub async fn register_handler(
     State(state): State<Arc<AppState>>,
-    Json(request): Json<RegisterRequest>,
+    req: Request<Body>,
 ) -> Result<impl IntoResponse, AppError> {
+    // Extract headers before consuming the request
+    let ip_address = extract_ip_address(req.headers());
+    let user_agent = extract_user_agent(req.headers());
+
+    // Extract body - axum will handle the extraction internally
+    let (parts, body) = req.into_parts();
+    let req = Request::from_parts(parts, body);
+    let Json(request): Json<RegisterRequest> = Json::from_request(req, &state)
+        .await
+        .map_err(|_| AppError::BadRequest("Invalid request body".to_string()))?;
+
+    let email = request.email.clone();
     let auth_service = AuthService::new(state.db_pool.clone());
-    let user = auth_service.register(request).await?;
 
-    let response = RegisterResponse {
-        user_id: user.id.clone(),
-        email: user.email.clone(),
-        name: user.name.clone(),
-        role: user.role.clone(),
-        message: "Registration successful".to_string(),
-    };
+    // Attempt registration
+    let result = auth_service.register(request).await;
 
-    Ok((axum::http::StatusCode::CREATED, Json(response)))
+    match result {
+        Ok(user) => {
+            // Log successful registration
+            audit_log(&AuditEvent::RegistrationSuccess {
+                user_id: uuid::Uuid::parse_str(&user.id).unwrap_or_else(|_| uuid::Uuid::nil()),
+                email: user.email.clone(),
+                role: user.role.clone(),
+                ip_address: ip_address.clone(),
+                user_agent: user_agent.clone(),
+            });
+
+            let response = RegisterResponse {
+                user_id: user.id.clone(),
+                email: user.email.clone(),
+                name: user.name.clone(),
+                role: user.role.clone(),
+                message: "Registration successful".to_string(),
+            };
+
+            Ok((axum::http::StatusCode::CREATED, Json(response)))
+        }
+        Err(e) => {
+            // Log failed registration
+            let error_msg = format!("{e:?}");
+            audit_log(&AuditEvent::RegistrationFailure {
+                email,
+                reason: error_msg,
+                ip_address,
+                user_agent,
+            });
+
+            Err(e)
+        }
+    }
 }
 
 /// Login with email and password
@@ -106,12 +151,60 @@ pub async fn register_handler(
 )]
 pub async fn login_handler(
     State(state): State<Arc<AppState>>,
-    Json(request): Json<LoginRequest>,
+    req: Request<Body>,
 ) -> Result<impl IntoResponse, AppError> {
-    let auth_service = AuthService::new(state.db_pool.clone());
-    let response = auth_service.login(request).await?;
+    // Extract headers before consuming the request
+    let ip_address = extract_ip_address(req.headers());
+    let user_agent = extract_user_agent(req.headers());
 
-    Ok(Json(response))
+    // Extract body
+    let (parts, body) = req.into_parts();
+    let req = Request::from_parts(parts, body);
+    let Json(request): Json<LoginRequest> = Json::from_request(req, &state)
+        .await
+        .map_err(|_| AppError::BadRequest("Invalid request body".to_string()))?;
+
+    let email = request.email.clone();
+    let auth_service = AuthService::new(state.db_pool.clone());
+
+    // Attempt login
+    let result = auth_service.login(request).await;
+
+    match result {
+        Ok(response) => {
+            // Log successful login
+            let user_id =
+                uuid::Uuid::parse_str(&response.user.id).unwrap_or_else(|_| uuid::Uuid::nil());
+            audit_log(&AuditEvent::LoginSuccess {
+                user_id,
+                email: response.user.email.clone(),
+                ip_address,
+                user_agent,
+            });
+
+            Ok(Json(response))
+        }
+        Err(e) => {
+            // Determine failure reason and account status
+            let (reason, account_locked) = match &e {
+                AppError::Forbidden(msg) if msg.contains("locked") => (msg.clone(), true),
+                AppError::Unauthorized => ("Invalid credentials".to_string(), false),
+                _ => (format!("{e:?}"), false),
+            };
+
+            // Log failed login
+            audit_log(&AuditEvent::LoginFailure {
+                email,
+                reason: reason.clone(),
+                ip_address,
+                user_agent,
+                failed_attempts: None, // Could be enhanced to include this info
+                account_locked,
+            });
+
+            Err(e)
+        }
+    }
 }
 
 /// Refresh access token
@@ -141,12 +234,47 @@ pub async fn login_handler(
 )]
 pub async fn refresh_handler(
     State(state): State<Arc<AppState>>,
-    Json(request): Json<RefreshRequest>,
+    req: Request<Body>,
 ) -> Result<impl IntoResponse, AppError> {
-    let auth_service = AuthService::new(state.db_pool.clone());
-    let response = auth_service.refresh(request).await?;
+    // Extract headers before consuming the request
+    let ip_address = extract_ip_address(req.headers());
+    let user_agent = extract_user_agent(req.headers());
 
-    Ok(Json(response))
+    // Extract body
+    let (parts, body) = req.into_parts();
+    let req = Request::from_parts(parts, body);
+    let Json(request): Json<RefreshRequest> = Json::from_request(req, &state)
+        .await
+        .map_err(|_| AppError::BadRequest("Invalid request body".to_string()))?;
+
+    let auth_service = AuthService::new(state.db_pool.clone());
+    let result = auth_service.refresh(request).await;
+
+    match result {
+        Ok(response) => {
+            // Log token refresh
+            let user_id =
+                uuid::Uuid::parse_str(&response.user.id).unwrap_or_else(|_| uuid::Uuid::nil());
+            audit_log(&AuditEvent::TokenRefresh {
+                user_id,
+                email: response.user.email.clone(),
+                ip_address,
+                user_agent,
+            });
+
+            Ok(Json(response))
+        }
+        Err(e) => {
+            // Log invalid token attempt
+            audit_log(&AuditEvent::InvalidToken {
+                ip_address,
+                user_agent,
+                reason: "Invalid or expired refresh token".to_string(),
+            });
+
+            Err(e)
+        }
+    }
 }
 
 /// Logout current session
@@ -181,12 +309,32 @@ pub async fn refresh_handler(
 pub async fn logout_handler(
     State(state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedUser>,
-    Json(request): Json<LogoutRequest>,
+    req: Request<Body>,
 ) -> Result<impl IntoResponse, AppError> {
+    // Extract headers before consuming the request
+    let ip_address = extract_ip_address(req.headers());
+
+    // Extract body
+    let (parts, body) = req.into_parts();
+    let req = Request::from_parts(parts, body);
+    let Json(request): Json<LogoutRequest> = Json::from_request(req, &state)
+        .await
+        .map_err(|_| AppError::BadRequest("Invalid request body".to_string()))?;
+
+    let logout_all = request.logout_all_devices.unwrap_or(false);
     let auth_service = AuthService::new(state.db_pool.clone());
+
     auth_service
         .logout(user.user_id, &user.jti, request)
         .await?;
+
+    // Log logout
+    audit_log(&AuditEvent::Logout {
+        user_id: user.user_id,
+        email: user.email.clone(),
+        ip_address,
+        logout_all_devices: logout_all,
+    });
 
     Ok(Json(LogoutResponse {
         message: "Logged out successfully".to_string(),

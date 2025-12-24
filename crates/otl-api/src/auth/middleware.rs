@@ -3,6 +3,7 @@
 /// Extracts and validates JWT tokens from the Authorization header.
 /// On success, adds authenticated user information to request extensions.
 use super::jwt::{validate_access_token, Claims, JwtConfig, JwtError};
+use crate::audit::{audit_log, extract_ip_address, extract_user_agent, AuditEvent};
 use axum::{
     body::Body,
     extract::Request,
@@ -93,6 +94,9 @@ pub enum AuthError {
 
     #[error("Insufficient permissions")]
     InsufficientPermissions,
+
+    #[error("Access denied to resource: {0}")]
+    AccessDenied(String),
 }
 
 impl IntoResponse for AuthError {
@@ -110,6 +114,7 @@ impl IntoResponse for AuthError {
             AuthError::InsufficientPermissions => {
                 (StatusCode::FORBIDDEN, "Insufficient permissions")
             }
+            AuthError::AccessDenied(_) => (StatusCode::FORBIDDEN, "Access denied"),
         };
 
         let body = serde_json::json!({
@@ -156,6 +161,10 @@ pub async fn auth_middleware(
     mut request: Request<Body>,
     next: Next,
 ) -> Result<Response, AuthError> {
+    // Extract context for audit logging
+    let ip_address = extract_ip_address(request.headers());
+    let user_agent = extract_user_agent(request.headers());
+
     // Extract Authorization header
     let auth_header = request
         .headers()
@@ -173,13 +182,30 @@ pub async fn auth_middleware(
     let config = JwtConfig::from_env();
 
     // Validate token and extract claims
-    let claims = validate_access_token(&config, token)?;
+    let claims = match validate_access_token(&config, token) {
+        Ok(c) => c,
+        Err(e) => {
+            // Log invalid token attempt
+            audit_log(&AuditEvent::InvalidToken {
+                ip_address,
+                user_agent,
+                reason: e.to_string(),
+            });
+            return Err(AuthError::InvalidToken(e));
+        }
+    };
 
     // Convert claims to AuthenticatedUser
     let user = AuthenticatedUser::from(claims);
 
     // Check token blacklist (for logout support)
     if is_token_revoked(&user.jti) {
+        // Log revoked token attempt
+        audit_log(&AuditEvent::InvalidToken {
+            ip_address,
+            user_agent,
+            reason: "Token has been revoked".to_string(),
+        });
         return Err(AuthError::TokenRevoked);
     }
 
@@ -238,6 +264,10 @@ pub fn require_role(
 ) -> impl Fn(Request<Body>, Next) -> RoleMiddlewareFuture + Clone {
     move |request: Request<Body>, next: Next| {
         Box::pin(async move {
+            // Extract context for audit logging
+            let ip_address = extract_ip_address(request.headers());
+            let user_agent = extract_user_agent(request.headers());
+
             // Extract authenticated user from extensions
             let user = request
                 .extensions()
@@ -247,6 +277,16 @@ pub fn require_role(
 
             // Check role
             if user.role != required_role && user.role != "admin" {
+                // Log access denied
+                audit_log(&AuditEvent::AccessDenied {
+                    user_id: Some(user.user_id),
+                    email: Some(user.email.clone()),
+                    resource: format!("role:{required_role}"),
+                    required_role: Some(required_role.to_string()),
+                    ip_address,
+                    user_agent,
+                });
+
                 return Err(AuthError::InsufficientPermissions);
             }
 
@@ -273,6 +313,10 @@ pub fn require_any_role(
 ) -> impl Fn(Request<Body>, Next) -> RoleMiddlewareFuture + Clone {
     move |request: Request<Body>, next: Next| {
         Box::pin(async move {
+            // Extract context for audit logging
+            let ip_address = extract_ip_address(request.headers());
+            let user_agent = extract_user_agent(request.headers());
+
             let user = request
                 .extensions()
                 .get::<AuthenticatedUser>()
@@ -286,6 +330,16 @@ pub fn require_any_role(
 
             // Check if user has any of the required roles
             if !required_roles.contains(&user.role.as_str()) {
+                // Log access denied
+                audit_log(&AuditEvent::AccessDenied {
+                    user_id: Some(user.user_id),
+                    email: Some(user.email.clone()),
+                    resource: format!("roles:{}", required_roles.join(",")),
+                    required_role: Some(required_roles.join(",")),
+                    ip_address,
+                    user_agent,
+                });
+
                 return Err(AuthError::InsufficientPermissions);
             }
 

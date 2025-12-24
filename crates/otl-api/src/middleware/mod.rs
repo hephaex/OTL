@@ -2,6 +2,13 @@
 //!
 //! Author: hephaex@gmail.com
 
+// Rate limiting temporarily disabled - tower_governor 0.8 API changes require further work
+// pub mod rate_limit;
+
+pub mod security_headers;
+
+pub use security_headers::security_headers_middleware;
+
 use axum::{
     body::Body,
     extract::Request,
@@ -111,7 +118,7 @@ pub async fn auth_middleware(
             StatusCode::UNAUTHORIZED,
             Json(serde_json::json!({
                 "code": "INVALID_TOKEN",
-                "message": format!("Invalid token: {}", e)
+                "message": format!("Invalid token: {e}")
             })),
         )),
     }
@@ -155,7 +162,7 @@ pub fn check_role(
             StatusCode::FORBIDDEN,
             Json(serde_json::json!({
                 "code": "FORBIDDEN",
-                "message": format!("Required role: {}", required_role)
+                "message": format!("Required role: {required_role}")
             })),
         )),
         None => Err((

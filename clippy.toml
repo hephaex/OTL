@@ -1,0 +1,29 @@
+# Clippy configuration for OTL project
+# Security-focused lints are enabled by default
+
+# Maximum allowed cognitive complexity
+cognitive-complexity-threshold = 25
+
+# Maximum allowed nesting depth
+excessive-nesting-threshold = 5
+
+# Maximum allowed number of lines in a function
+too-many-lines-threshold = 200
+
+# Maximum allowed number of arguments in a function
+too-many-arguments-threshold = 8
+
+# Maximum allowed struct fields
+large-types-threshold = 1000
+
+# Documentation requirements (disabled for private items)
+missing-docs-in-crate-items = false
+
+# Allow these lints project-wide
+allow-unwrap-in-tests = true
+
+# Type complexity threshold
+type-complexity-threshold = 350
+
+# MSRV for compatibility
+msrv = "1.75"

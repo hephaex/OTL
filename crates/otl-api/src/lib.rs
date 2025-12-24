@@ -9,6 +9,7 @@
 //!
 //! Author: hephaex@gmail.com
 
+pub mod audit;
 pub mod auth;
 pub mod error;
 pub mod handlers;
@@ -16,7 +17,7 @@ pub mod middleware;
 pub mod routes;
 pub mod state;
 
-use axum::Router;
+use axum::{middleware as axum_middleware, Router};
 use state::AppState;
 use std::sync::Arc;
 use tower_http::cors::{AllowOrigin, Any, CorsLayer};
@@ -155,6 +156,9 @@ pub fn create_router(state: Arc<AppState>) -> Router {
             "/metrics/prometheus",
             axum::routing::get(handlers::health::prometheus_metrics),
         )
+        .layer(axum_middleware::from_fn(
+            middleware::security_headers_middleware,
+        ))
         .layer(TraceLayer::new_for_http())
         .layer(cors)
         .with_state(state)

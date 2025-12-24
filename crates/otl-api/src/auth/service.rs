@@ -5,6 +5,7 @@
 
 use super::jwt::{generate_access_token, JwtConfig};
 use super::password::{hash_password, validate_password_strength, verify_password};
+use crate::audit::{audit_log, AuditEvent};
 use crate::error::AppError;
 use base64::Engine;
 use chrono::{DateTime, Duration, Utc};
@@ -249,6 +250,17 @@ impl AuthService {
             .execute(&self.db_pool)
             .await
             .ok(); // Ignore errors here
+
+            // Log account lockout if threshold exceeded
+            if let Some(locked_time) = locked_until {
+                audit_log(&AuditEvent::AccountLocked {
+                    user_id: user.id,
+                    email: user.email.clone(),
+                    failed_attempts,
+                    locked_until: locked_time,
+                    ip_address: None, // IP address logged at handler level
+                });
+            }
 
             return Err(AppError::Unauthorized);
         }

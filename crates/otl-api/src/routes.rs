@@ -4,6 +4,8 @@
 
 use crate::auth::middleware::auth_middleware;
 use crate::handlers::{auth, documents, graph, query, verify};
+// TODO: Re-enable rate limiting once tower_governor is updated to 0.8+
+// use crate::middleware::rate_limit;
 use crate::state::AppState;
 use axum::{
     middleware,
@@ -14,19 +16,28 @@ use std::sync::Arc;
 
 /// Create API v1 routes
 pub fn api_routes() -> Router<Arc<AppState>> {
-    // Public routes (no authentication required)
-    let public_routes = Router::new()
+    // Auth routes (no authentication required)
+    // TODO: Add rate limiting - 5 requests per minute per IP to prevent brute force attacks
+    let auth_routes = Router::new()
         .route("/auth/register", post(auth::register_handler))
         .route("/auth/login", post(auth::login_handler))
         .route("/auth/refresh", post(auth::refresh_handler));
+    // .layer(rate_limit::auth_rate_limit());
+
+    // Streaming endpoints (authentication required)
+    // TODO: Add rate limiting - 10 requests per minute per IP due to high resource usage
+    let streaming_routes = Router::new()
+        .route("/query/stream", post(query::query_stream_handler))
+        .layer(middleware::from_fn(auth_middleware));
+    // .layer(rate_limit::streaming_rate_limit());
 
     // Protected routes (authentication required)
+    // TODO: Add rate limiting - 100 requests per minute per IP for normal API operations
     let protected_routes = Router::new()
         .route("/auth/logout", post(auth::logout_handler))
         .route("/auth/me", get(auth::me_handler))
         // Query endpoints
         .route("/query", post(query::query_handler))
-        .route("/query/stream", post(query::query_stream_handler))
         // Document endpoints
         .route("/documents", get(documents::list_documents))
         .route("/documents", post(documents::upload_document))
@@ -45,7 +56,11 @@ pub fn api_routes() -> Router<Arc<AppState>> {
         .route("/verify/:id/reject", post(verify::reject_extraction))
         .route("/verify/stats", get(verify::get_stats))
         .layer(middleware::from_fn(auth_middleware));
+    // .layer(rate_limit::api_rate_limit());
 
     // Combine routes
-    Router::new().merge(public_routes).merge(protected_routes)
+    Router::new()
+        .merge(auth_routes)
+        .merge(streaming_routes)
+        .merge(protected_routes)
 }
