@@ -18,8 +18,10 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Instant;
 
+pub mod cache;
 pub mod llm;
 
+pub use cache::{CacheConfig, CacheStatsReport, EmbeddingCache, QueryCache, RagCacheManager};
 pub use llm::{create_llm_client, OllamaClient, OpenAiClient};
 
 // ============================================================================
@@ -500,19 +502,23 @@ impl HybridRagOrchestrator {
         });
 
         for cap in re.captures_iter(answer) {
-            if let Some(num_str) = cap.get(1) {
-                if let Ok(num) = num_str.as_str().parse::<usize>() {
-                    if num > 0 && num <= results.len() {
-                        let result = &results[num - 1];
-                        citations.push(Citation {
-                            index: num as u32,
-                            text: result.content.chars().take(200).collect(),
-                            source: result.source.clone(),
-                            document_title: format!("Document {:?}", result.source.document_id),
-                        });
-                    }
-                }
+            let Some(num_str) = cap.get(1) else {
+                continue;
+            };
+            let Ok(num) = num_str.as_str().parse::<usize>() else {
+                continue;
+            };
+            if num == 0 || num > results.len() {
+                continue;
             }
+
+            let result = &results[num - 1];
+            citations.push(Citation {
+                index: num as u32,
+                text: result.content.chars().take(200).collect(),
+                source: result.source.clone(),
+                document_title: format!("Document {:?}", result.source.document_id),
+            });
         }
 
         // Deduplicate by index

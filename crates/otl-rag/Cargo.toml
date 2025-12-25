@@ -22,6 +22,7 @@ uuid = { workspace = true }
 regex = "1.10"
 reqwest = { workspace = true }
 tracing = { workspace = true }
+moka = { version = "0.12", features = ["future"] }
 
 [dev-dependencies]
 tokio-test = { workspace = true }
