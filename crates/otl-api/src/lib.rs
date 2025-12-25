@@ -156,6 +156,10 @@ pub fn create_router(state: Arc<AppState>) -> Router {
             "/metrics/prometheus",
             axum::routing::get(handlers::health::prometheus_metrics),
         )
+        .layer(axum_middleware::from_fn_with_state(
+            state.clone(),
+            middleware::metrics_middleware,
+        ))
         .layer(axum_middleware::from_fn(
             middleware::security_headers_middleware,
         ))

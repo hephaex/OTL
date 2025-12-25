@@ -8,6 +8,7 @@ use otl_graph::SurrealDbStore;
 use otl_rag::{HybridRagOrchestrator, RagConfig as OtlRagConfig};
 use otl_vector::VectorSearchBackend;
 use sqlx::PgPool;
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
@@ -37,6 +38,48 @@ pub struct AppState {
     pub graph_db: RwLock<Option<Arc<SurrealDbStore>>>,
     /// LLM client
     pub llm_client: RwLock<Option<Arc<dyn LlmClient>>>,
+    /// Request metrics by endpoint and status
+    pub metrics: RwLock<HashMap<String, EndpointMetrics>>,
+    /// Cache hit counter (if cache is enabled)
+    pub cache_hits: AtomicU64,
+    /// Cache miss counter (if cache is enabled)
+    pub cache_misses: AtomicU64,
+}
+
+/// Metrics for a specific endpoint
+#[derive(Debug, Clone, Default)]
+pub struct EndpointMetrics {
+    /// Total requests to this endpoint
+    pub request_count: u64,
+    /// Requests by status code
+    pub status_counts: HashMap<u16, u64>,
+    /// Total latency in microseconds (for calculating average)
+    pub total_latency_us: u64,
+    /// Request count for latency calculation
+    pub latency_count: u64,
+    /// Minimum latency in microseconds
+    pub min_latency_us: u64,
+    /// Maximum latency in microseconds
+    pub max_latency_us: u64,
+    /// Latency buckets for histogram (microseconds)
+    pub latency_buckets: LatencyBuckets,
+}
+
+/// Histogram buckets for latency tracking
+#[derive(Debug, Clone, Default)]
+pub struct LatencyBuckets {
+    /// < 10ms
+    pub under_10ms: u64,
+    /// 10-50ms
+    pub ms_10_50: u64,
+    /// 50-100ms
+    pub ms_50_100: u64,
+    /// 100-500ms
+    pub ms_100_500: u64,
+    /// 500ms-1s
+    pub ms_500_1000: u64,
+    /// > 1s
+    pub over_1s: u64,
 }
 
 impl AppState {
@@ -54,6 +97,9 @@ impl AppState {
             graph_store: RwLock::new(None),
             graph_db: RwLock::new(None),
             llm_client: RwLock::new(None),
+            metrics: RwLock::new(HashMap::new()),
+            cache_hits: AtomicU64::new(0),
+            cache_misses: AtomicU64::new(0),
         }
     }
 
@@ -129,5 +175,57 @@ impl AppState {
             Some(id) => User::internal(id, vec!["EMPLOYEE".to_string()]),
             None => User::internal("api_user", vec!["EMPLOYEE".to_string()]),
         }
+    }
+
+    /// Record a request with latency and status
+    pub async fn record_request(&self, endpoint: String, status_code: u16, latency_us: u64) {
+        let mut metrics = self.metrics.write().await;
+        let endpoint_metrics = metrics.entry(endpoint).or_default();
+
+        endpoint_metrics.request_count += 1;
+        *endpoint_metrics
+            .status_counts
+            .entry(status_code)
+            .or_insert(0) += 1;
+
+        // Update latency statistics
+        endpoint_metrics.total_latency_us += latency_us;
+        endpoint_metrics.latency_count += 1;
+
+        if endpoint_metrics.min_latency_us == 0 || latency_us < endpoint_metrics.min_latency_us {
+            endpoint_metrics.min_latency_us = latency_us;
+        }
+
+        if latency_us > endpoint_metrics.max_latency_us {
+            endpoint_metrics.max_latency_us = latency_us;
+        }
+
+        // Update histogram buckets
+        let latency_ms = latency_us / 1000;
+        match latency_ms {
+            0..=9 => endpoint_metrics.latency_buckets.under_10ms += 1,
+            10..=49 => endpoint_metrics.latency_buckets.ms_10_50 += 1,
+            50..=99 => endpoint_metrics.latency_buckets.ms_50_100 += 1,
+            100..=499 => endpoint_metrics.latency_buckets.ms_100_500 += 1,
+            500..=999 => endpoint_metrics.latency_buckets.ms_500_1000 += 1,
+            _ => endpoint_metrics.latency_buckets.over_1s += 1,
+        }
+    }
+
+    /// Record a cache hit
+    pub fn record_cache_hit(&self) {
+        self.cache_hits.fetch_add(1, Ordering::SeqCst);
+    }
+
+    /// Record a cache miss
+    pub fn record_cache_miss(&self) {
+        self.cache_misses.fetch_add(1, Ordering::SeqCst);
+    }
+
+    /// Get cache statistics
+    pub fn get_cache_stats(&self) -> (u64, u64) {
+        let hits = self.cache_hits.load(Ordering::SeqCst);
+        let misses = self.cache_misses.load(Ordering::SeqCst);
+        (hits, misses)
     }
 }
