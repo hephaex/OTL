@@ -204,9 +204,9 @@ pub struct DatabaseConfig {
 impl Default for DatabaseConfig {
     fn default() -> Self {
         Self {
-            postgres_url: "postgres://otl:otl_dev_password@localhost:5432/otl".to_string(),
+            postgres_url: "postgres://otl:otl_dev_password@localhost:5433/otl".to_string(),
             postgres_pool_size: 10,
-            surrealdb_url: "ws://localhost:8000".to_string(),
+            surrealdb_url: "ws://localhost:8001".to_string(),
             surrealdb_user: "root".to_string(),
             surrealdb_pass: "root".to_string(),
             surrealdb_namespace: "otl".to_string(),

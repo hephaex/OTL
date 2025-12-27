@@ -15,7 +15,7 @@ services:
     user: root
     command: start --log trace --user root --pass root surrealkv:/data/srdb.db
     ports:
-      - "8000:8000"
+      - "8001:8000"  # Changed to avoid port conflict with ntimes-coordinator
     volumes:
       - surrealdb_data:/data
     environment:

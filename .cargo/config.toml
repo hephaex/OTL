@@ -1,0 +1,39 @@
+# Cargo configuration for Ubuntu x86_64 environment
+# Optimized build settings for production deployments
+
+[build]
+# Default target for Ubuntu x86_64
+target = "x86_64-unknown-linux-gnu"
+
+# Use all available CPU cores for parallel compilation
+jobs = -1
+
+[target.x86_64-unknown-linux-gnu]
+# Link-time optimization settings
+rustflags = [
+    # Enable CPU-specific optimizations for x86_64
+    "-C", "target-cpu=x86-64-v2",
+]
+
+# Network configuration
+[net]
+# Use sparse protocol for faster registry operations
+git-fetch-with-cli = false
+
+# Registry configuration
+[registries.crates-io]
+protocol = "sparse"
+
+# Profile optimizations (complementing workspace Cargo.toml)
+[profile.dev]
+# Faster incremental compilation for development
+incremental = true
+
+[profile.test]
+# Optimize test builds for faster execution
+opt-level = 2
+
+# Alias for commonly used commands
+[alias]
+quick = "check --workspace --lib"
+validate = "clippy --workspace --all-targets -- -D warnings"

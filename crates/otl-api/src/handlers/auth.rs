@@ -13,6 +13,7 @@ use crate::state::AppState;
 use axum::{
     body::Body,
     extract::{FromRequest, Request, State},
+    http::HeaderMap,
     response::IntoResponse,
     Extension, Json,
 };
@@ -66,18 +67,12 @@ pub struct LogoutResponse {
 )]
 pub async fn register_handler(
     State(state): State<Arc<AppState>>,
-    req: Request<Body>,
+    headers: HeaderMap,
+    Json(request): Json<RegisterRequest>,
 ) -> Result<impl IntoResponse, AppError> {
-    // Extract headers before consuming the request
-    let ip_address = extract_ip_address(req.headers());
-    let user_agent = extract_user_agent(req.headers());
-
-    // Extract body - axum will handle the extraction internally
-    let (parts, body) = req.into_parts();
-    let req = Request::from_parts(parts, body);
-    let Json(request): Json<RegisterRequest> = Json::from_request(req, &state)
-        .await
-        .map_err(|_| AppError::BadRequest("Invalid request body".to_string()))?;
+    // Extract headers
+    let ip_address = extract_ip_address(&headers);
+    let user_agent = extract_user_agent(&headers);
 
     let email = request.email.clone();
     let auth_service = AuthService::new(state.db_pool.clone());
@@ -151,18 +146,12 @@ pub async fn register_handler(
 )]
 pub async fn login_handler(
     State(state): State<Arc<AppState>>,
-    req: Request<Body>,
+    headers: HeaderMap,
+    Json(request): Json<LoginRequest>,
 ) -> Result<impl IntoResponse, AppError> {
-    // Extract headers before consuming the request
-    let ip_address = extract_ip_address(req.headers());
-    let user_agent = extract_user_agent(req.headers());
-
-    // Extract body
-    let (parts, body) = req.into_parts();
-    let req = Request::from_parts(parts, body);
-    let Json(request): Json<LoginRequest> = Json::from_request(req, &state)
-        .await
-        .map_err(|_| AppError::BadRequest("Invalid request body".to_string()))?;
+    // Extract headers
+    let ip_address = extract_ip_address(&headers);
+    let user_agent = extract_user_agent(&headers);
 
     let email = request.email.clone();
     let auth_service = AuthService::new(state.db_pool.clone());
@@ -234,18 +223,12 @@ pub async fn login_handler(
 )]
 pub async fn refresh_handler(
     State(state): State<Arc<AppState>>,
-    req: Request<Body>,
+    headers: HeaderMap,
+    Json(request): Json<RefreshRequest>,
 ) -> Result<impl IntoResponse, AppError> {
-    // Extract headers before consuming the request
-    let ip_address = extract_ip_address(req.headers());
-    let user_agent = extract_user_agent(req.headers());
-
-    // Extract body
-    let (parts, body) = req.into_parts();
-    let req = Request::from_parts(parts, body);
-    let Json(request): Json<RefreshRequest> = Json::from_request(req, &state)
-        .await
-        .map_err(|_| AppError::BadRequest("Invalid request body".to_string()))?;
+    // Extract headers
+    let ip_address = extract_ip_address(&headers);
+    let user_agent = extract_user_agent(&headers);
 
     let auth_service = AuthService::new(state.db_pool.clone());
     let result = auth_service.refresh(request).await;
@@ -309,17 +292,11 @@ pub async fn refresh_handler(
 pub async fn logout_handler(
     State(state): State<Arc<AppState>>,
     Extension(user): Extension<AuthenticatedUser>,
-    req: Request<Body>,
+    headers: HeaderMap,
+    Json(request): Json<LogoutRequest>,
 ) -> Result<impl IntoResponse, AppError> {
-    // Extract headers before consuming the request
-    let ip_address = extract_ip_address(req.headers());
-
-    // Extract body
-    let (parts, body) = req.into_parts();
-    let req = Request::from_parts(parts, body);
-    let Json(request): Json<LogoutRequest> = Json::from_request(req, &state)
-        .await
-        .map_err(|_| AppError::BadRequest("Invalid request body".to_string()))?;
+    // Extract headers
+    let ip_address = extract_ip_address(&headers);
 
     let logout_all = request.logout_all_devices.unwrap_or(false);
     let auth_service = AuthService::new(state.db_pool.clone());
