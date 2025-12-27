@@ -250,78 +250,106 @@ impl RuleBasedRe {
             .any(|k| text_lower.contains(&k.to_lowercase()))
     }
 
+    /// Try to create a relation between subject and object entities based on pattern
+    /// Returns None if entities don't match the pattern criteria
+    fn try_create_relation(
+        &self,
+        text: &str,
+        subject: &ExtractedEntity,
+        object: &ExtractedEntity,
+        pattern: &RelationPattern,
+    ) -> Option<ExtractedRelation> {
+        // Skip if same entity
+        if subject.start == object.start {
+            return None;
+        }
+
+        // Calculate distance between entities
+        let (first, second) = if subject.start < object.start {
+            (subject, object)
+        } else {
+            (object, subject)
+        };
+
+        let distance = second.start.saturating_sub(first.end);
+
+        // Check if within max distance
+        if distance > pattern.max_distance {
+            return None;
+        }
+
+        // Check context: text between first and second entity,
+        // plus text after second entity (up to max_distance)
+        // Handle UTF-8 boundaries safely
+        let context_start = first.end;
+        let mut context_end = (second.end + pattern.max_distance).min(text.len());
+
+        // Ensure we're at a valid char boundary
+        while context_end > context_start && !text.is_char_boundary(context_end) {
+            context_end -= 1;
+        }
+
+        // Validate context boundaries
+        if context_end <= context_start || !text.is_char_boundary(context_start) {
+            return None;
+        }
+
+        let context_text = &text[context_start..context_end];
+
+        // Check for keywords in context
+        if !self.contains_keywords(context_text, &pattern.keywords) {
+            return None;
+        }
+
+        Some(ExtractedRelation {
+            subject: subject.clone(),
+            predicate: pattern.relation.to_string(),
+            object: object.clone(),
+            confidence: pattern.confidence,
+        })
+    }
+
+    /// Process a single pattern and find all matching relations
+    fn process_pattern(
+        &self,
+        text: &str,
+        entities: &[ExtractedEntity],
+        pattern: &RelationPattern,
+    ) -> Vec<ExtractedRelation> {
+        // Find matching subject entities
+        let subjects: Vec<&ExtractedEntity> = entities
+            .iter()
+            .filter(|e| e.entity_type == pattern.subject_type)
+            .collect();
+
+        // Find matching object entities
+        let objects: Vec<&ExtractedEntity> = entities
+            .iter()
+            .filter(|e| e.entity_type == pattern.object_type)
+            .collect();
+
+        // Check each subject-object pair and collect relations
+        let mut relations = Vec::new();
+        for subject in &subjects {
+            for object in &objects {
+                if let Some(relation) = self.try_create_relation(text, subject, object, pattern) {
+                    relations.push(relation);
+                }
+            }
+        }
+        relations
+    }
+
     /// Find relations between entities based on patterns
     fn find_pattern_relations(
         &self,
         text: &str,
         entities: &[ExtractedEntity],
     ) -> Vec<ExtractedRelation> {
-        let mut relations = Vec::new();
-
-        for pattern in &self.patterns {
-            // Find matching subject entities
-            let subjects: Vec<&ExtractedEntity> = entities
-                .iter()
-                .filter(|e| e.entity_type == pattern.subject_type)
-                .collect();
-
-            // Find matching object entities
-            let objects: Vec<&ExtractedEntity> = entities
-                .iter()
-                .filter(|e| e.entity_type == pattern.object_type)
-                .collect();
-
-            // Check each subject-object pair
-            for subject in &subjects {
-                for object in &objects {
-                    // Skip if same entity
-                    if subject.start == object.start {
-                        continue;
-                    }
-
-                    // Calculate distance between entities
-                    let (first, second) = if subject.start < object.start {
-                        (subject, object)
-                    } else {
-                        (object, subject)
-                    };
-
-                    let distance = second.start.saturating_sub(first.end);
-
-                    // Check if within max distance
-                    if distance > pattern.max_distance {
-                        continue;
-                    }
-
-                    // Check context: text between first and second entity,
-                    // plus text after second entity (up to max_distance)
-                    // Handle UTF-8 boundaries safely
-                    let context_start = first.end;
-                    let mut context_end = (second.end + pattern.max_distance).min(text.len());
-
-                    // Ensure we're at a valid char boundary
-                    while context_end > context_start && !text.is_char_boundary(context_end) {
-                        context_end -= 1;
-                    }
-
-                    if context_end > context_start && text.is_char_boundary(context_start) {
-                        let context_text = &text[context_start..context_end];
-
-                        // Check for keywords in context
-                        if self.contains_keywords(context_text, &pattern.keywords) {
-                            relations.push(ExtractedRelation {
-                                subject: (*subject).clone(),
-                                predicate: pattern.relation.to_string(),
-                                object: (*object).clone(),
-                                confidence: pattern.confidence,
-                            });
-                        }
-                    }
-                }
-            }
-        }
-
-        relations
+        self.patterns
+            .iter()
+            .flat_map(|pattern| self.process_pattern(text, entities, pattern))
+            .collect()
     }
 }
 
