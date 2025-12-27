@@ -197,8 +197,7 @@ pub async fn prometheus_metrics(State(state): State<Arc<AppState>>) -> impl Into
     for (endpoint, endpoint_metrics) in metrics.iter() {
         for (status, count) in &endpoint_metrics.status_counts {
             output.push_str(&format!(
-                "otl_http_requests_total{{endpoint=\"{}\",status=\"{}\"}} {}\n",
-                endpoint, status, count
+                "otl_http_requests_total{{endpoint=\"{endpoint}\",status=\"{status}\"}} {count}\n"
             ));
         }
     }
@@ -224,24 +223,21 @@ pub async fn prometheus_metrics(State(state): State<Arc<AppState>>) -> impl Into
             ] {
                 cumulative += count;
                 output.push_str(&format!(
-                    "otl_http_request_duration_seconds_bucket{{endpoint=\"{}\",le=\"{}\"}} {}\n",
-                    endpoint, le, cumulative
+                    "otl_http_request_duration_seconds_bucket{{endpoint=\"{endpoint}\",le=\"{le}\"}} {cumulative}\n"
                 ));
             }
 
             // +Inf bucket
             cumulative += endpoint_metrics.latency_buckets.over_1s;
             output.push_str(&format!(
-                "otl_http_request_duration_seconds_bucket{{endpoint=\"{}\",le=\"+Inf\"}} {}\n",
-                endpoint, cumulative
+                "otl_http_request_duration_seconds_bucket{{endpoint=\"{endpoint}\",le=\"+Inf\"}} {cumulative}\n"
             ));
 
             // Sum and count
             let total_sum_s =
                 (endpoint_metrics.total_latency_us as f64) / 1_000_000.0;
             output.push_str(&format!(
-                "otl_http_request_duration_seconds_sum{{endpoint=\"{}\"}} {:.6}\n",
-                endpoint, total_sum_s
+                "otl_http_request_duration_seconds_sum{{endpoint=\"{endpoint}\"}} {total_sum_s:.6}\n"
             ));
             output.push_str(&format!(
                 "otl_http_request_duration_seconds_count{{endpoint=\"{}\"}} {}\n",
@@ -271,16 +267,13 @@ pub async fn prometheus_metrics(State(state): State<Arc<AppState>>) -> impl Into
             let (p50, p90, p99) = calculate_percentiles(endpoint_metrics, p50_threshold, p90_threshold, p99_threshold);
 
             output.push_str(&format!(
-                "otl_http_request_duration_seconds_summary{{endpoint=\"{}\",quantile=\"0.5\"}} {:.6}\n",
-                endpoint, p50
+                "otl_http_request_duration_seconds_summary{{endpoint=\"{endpoint}\",quantile=\"0.5\"}} {p50:.6}\n"
             ));
             output.push_str(&format!(
-                "otl_http_request_duration_seconds_summary{{endpoint=\"{}\",quantile=\"0.9\"}} {:.6}\n",
-                endpoint, p90
+                "otl_http_request_duration_seconds_summary{{endpoint=\"{endpoint}\",quantile=\"0.9\"}} {p90:.6}\n"
             ));
             output.push_str(&format!(
-                "otl_http_request_duration_seconds_summary{{endpoint=\"{}\",quantile=\"0.99\"}} {:.6}\n",
-                endpoint, p99
+                "otl_http_request_duration_seconds_summary{{endpoint=\"{endpoint}\",quantile=\"0.99\"}} {p99:.6}\n"
             ));
         }
     }

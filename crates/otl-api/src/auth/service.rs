@@ -211,7 +211,7 @@ impl AuthService {
         .fetch_optional(&self.db_pool)
         .await
         .map_err(|e| AppError::Database(format!("Failed to fetch user: {e}")))?
-        .ok_or_else(|| AppError::Unauthorized)?;
+        .ok_or(AppError::Unauthorized)?;
 
         // Check if account is active
         if !user.is_active {
@@ -222,8 +222,7 @@ impl AuthService {
         if let Some(locked_until) = user.locked_until {
             if locked_until > Utc::now() {
                 return Err(AppError::Forbidden(format!(
-                    "Account is locked until {}",
-                    locked_until
+                    "Account is locked until {locked_until}"
                 )));
             }
         }
@@ -339,7 +338,7 @@ impl AuthService {
         .fetch_optional(&self.db_pool)
         .await
         .map_err(|e| AppError::Database(format!("Failed to fetch refresh token: {e}")))?
-        .ok_or_else(|| AppError::Unauthorized)?;
+        .ok_or(AppError::Unauthorized)?;
 
         // Check if token is revoked
         if token_record.revoked_at.is_some() {
@@ -359,7 +358,7 @@ impl AuthService {
         .fetch_optional(&self.db_pool)
         .await
         .map_err(|e| AppError::Database(format!("Failed to fetch user: {e}")))?
-        .ok_or_else(|| AppError::Unauthorized)?;
+        .ok_or(AppError::Unauthorized)?;
 
         // Check if account is active
         if !user.is_active {
