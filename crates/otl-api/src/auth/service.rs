@@ -88,7 +88,7 @@ struct UserRecord {
 struct RefreshTokenRecord {
     id: Uuid,
     user_id: Uuid,
-    token_hash: String,
+    _token_hash: String,
     expires_at: DateTime<Utc>,
     revoked_at: Option<DateTime<Utc>>,
 }

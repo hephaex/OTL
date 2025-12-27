@@ -11,8 +11,7 @@ use crate::auth::{
 use crate::error::AppError;
 use crate::state::AppState;
 use axum::{
-    body::Body,
-    extract::{FromRequest, Request, State},
+    extract::State,
     http::HeaderMap,
     response::IntoResponse,
     Extension, Json,

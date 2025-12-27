@@ -647,8 +647,6 @@ impl TokenBlacklistRepository {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     // Note: These tests require a running SurrealDB instance
     // They are integration tests and should be run with a test database
 

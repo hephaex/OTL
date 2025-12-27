@@ -209,7 +209,7 @@ pub async fn prometheus_metrics(State(state): State<Arc<AppState>>) -> impl Into
     output.push_str("# TYPE otl_http_request_duration_seconds histogram\n");
     for (endpoint, endpoint_metrics) in metrics.iter() {
         if endpoint_metrics.latency_count > 0 {
-            let avg_latency_s = (endpoint_metrics.total_latency_us as f64)
+            let _avg_latency_s = (endpoint_metrics.total_latency_us as f64)
                 / (endpoint_metrics.latency_count as f64)
                 / 1_000_000.0;
 
@@ -256,11 +256,11 @@ pub async fn prometheus_metrics(State(state): State<Arc<AppState>>) -> impl Into
     output.push_str("# TYPE otl_http_request_duration_seconds_summary summary\n");
     for (endpoint, endpoint_metrics) in metrics.iter() {
         if endpoint_metrics.latency_count > 0 {
-            let avg_s = (endpoint_metrics.total_latency_us as f64)
+            let _avg_s = (endpoint_metrics.total_latency_us as f64)
                 / (endpoint_metrics.latency_count as f64)
                 / 1_000_000.0;
-            let min_s = (endpoint_metrics.min_latency_us as f64) / 1_000_000.0;
-            let max_s = (endpoint_metrics.max_latency_us as f64) / 1_000_000.0;
+            let _min_s = (endpoint_metrics.min_latency_us as f64) / 1_000_000.0;
+            let _max_s = (endpoint_metrics.max_latency_us as f64) / 1_000_000.0;
 
             // Approximate percentiles from histogram buckets
             let total = endpoint_metrics.latency_count;
