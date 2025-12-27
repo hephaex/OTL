@@ -38,7 +38,7 @@ utoipa-swagger-ui = { workspace = true }
 jsonwebtoken = "9"
 argon2 = "0.5"
 rand = "0.8"
-validator = { version = "0.18", features = ["derive"] }
+validator = { version = "0.20", features = ["derive"] }
 futures = { workspace = true }
 base64 = "0.22"
 sha2 = "0.10"
@@ -46,7 +46,7 @@ pdf-extract = { workspace = true }
 docx-rs = { workspace = true }
 sqlx = { workspace = true }
 chrono = { workspace = true }
-prometheus = { version = "0.13", features = ["process"] }
+prometheus = { version = "0.14", features = ["process"] }
 lazy_static = "1.4"
 
 [dev-dependencies]
