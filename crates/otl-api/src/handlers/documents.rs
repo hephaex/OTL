@@ -789,21 +789,29 @@ fn extract_text_from_docx(bytes: &[u8]) -> Result<String, String> {
     // Parse the DOCX file directly from bytes
     let docx = docx_rs::read_docx(bytes).map_err(|e| format!("Failed to parse DOCX: {e}"))?;
 
-    // Extract text from all paragraphs
+    // Extract text from all paragraphs using iterator methods to reduce nesting
     let mut text = String::new();
     for child in docx.document.children {
-        if let docx_rs::DocumentChild::Paragraph(para) = child {
-            for child in para.children {
-                if let docx_rs::ParagraphChild::Run(run) = child {
-                    for child in run.children {
-                        if let docx_rs::RunChild::Text(t) = child {
-                            text.push_str(&t.text);
-                        }
-                    }
-                }
-            }
-            text.push('\n');
+        let Some(para) = extract_paragraph(child) else {
+            continue;
+        };
+
+        // Extract text from all runs in this paragraph
+        for run_child in para.children {
+            let Some(run) = extract_run(run_child) else {
+                continue;
+            };
+
+            // Extract text from all text nodes in this run
+            let run_text: String = run
+                .children
+                .into_iter()
+                .filter_map(extract_text_node)
+                .collect();
+
+            text.push_str(&run_text);
         }
+        text.push('\n');
     }
 
     if text.is_empty() {
@@ -811,4 +819,31 @@ fn extract_text_from_docx(bytes: &[u8]) -> Result<String, String> {
     }
 
     Ok(text)
+}
+
+/// Extract paragraph from document child
+fn extract_paragraph(child: docx_rs::DocumentChild) -> Option<Box<docx_rs::Paragraph>> {
+    if let docx_rs::DocumentChild::Paragraph(para) = child {
+        Some(para)
+    } else {
+        None
+    }
+}
+
+/// Extract run from paragraph child
+fn extract_run(child: docx_rs::ParagraphChild) -> Option<Box<docx_rs::Run>> {
+    if let docx_rs::ParagraphChild::Run(run) = child {
+        Some(run)
+    } else {
+        None
+    }
+}
+
+/// Extract text content from run child
+fn extract_text_node(child: docx_rs::RunChild) -> Option<String> {
+    if let docx_rs::RunChild::Text(t) = child {
+        Some(t.text)
+    } else {
+        None
+    }
 }

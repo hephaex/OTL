@@ -9,7 +9,20 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 use utoipa::ToSchema;
+
+/// Error type for parsing UserRole from string
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParseUserRoleError(String);
+
+impl std::fmt::Display for ParseUserRoleError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "invalid user role: {}", self.0)
+    }
+}
+
+impl std::error::Error for ParseUserRoleError {}
 
 /// User role enum
 ///
@@ -34,14 +47,17 @@ impl UserRole {
             UserRole::Viewer => "viewer",
         }
     }
+}
 
-    /// Parse role from string
-    pub fn from_str(s: &str) -> Option<Self> {
+impl FromStr for UserRole {
+    type Err = ParseUserRoleError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
-            "admin" => Some(UserRole::Admin),
-            "editor" => Some(UserRole::Editor),
-            "viewer" => Some(UserRole::Viewer),
-            _ => None,
+            "admin" => Ok(UserRole::Admin),
+            "editor" => Ok(UserRole::Editor),
+            "viewer" => Ok(UserRole::Viewer),
+            _ => Err(ParseUserRoleError(s.to_string())),
         }
     }
 }
@@ -349,9 +365,9 @@ mod tests {
         assert_eq!(UserRole::Editor.as_str(), "editor");
         assert_eq!(UserRole::Viewer.as_str(), "viewer");
 
-        assert_eq!(UserRole::from_str("admin"), Some(UserRole::Admin));
-        assert_eq!(UserRole::from_str("EDITOR"), Some(UserRole::Editor));
-        assert_eq!(UserRole::from_str("invalid"), None);
+        assert_eq!("admin".parse::<UserRole>().unwrap(), UserRole::Admin);
+        assert_eq!("EDITOR".parse::<UserRole>().unwrap(), UserRole::Editor);
+        assert!("invalid".parse::<UserRole>().is_err());
     }
 
     #[test]

@@ -244,46 +244,56 @@ pub async fn list_pending(
             // Process entities
             if let Some(entities) = row.extracted_entities.as_array() {
                 for entity in entities {
-                    if entity.as_object().is_some() {
-                        if let Ok(content) =
-                            serde_json::from_value::<ExtractedContent>(entity.clone())
-                        {
-                            results.push(PendingExtraction {
-                                id: row.id,
-                                document_id: row.document_id,
-                                document_title: row.document_title.clone(),
-                                extraction_type: "entity".to_string(),
-                                content,
-                                confidence: row.confidence_score,
-                                context: context.clone(),
-                                status: row.status.clone(),
-                                created_at: created_at.clone(),
-                            });
-                        }
+                    // Skip non-object entities
+                    if entity.as_object().is_none() {
+                        continue;
                     }
+
+                    // Try to parse entity content
+                    let Ok(content) = serde_json::from_value::<ExtractedContent>(entity.clone())
+                    else {
+                        continue;
+                    };
+
+                    results.push(PendingExtraction {
+                        id: row.id,
+                        document_id: row.document_id,
+                        document_title: row.document_title.clone(),
+                        extraction_type: "entity".to_string(),
+                        content,
+                        confidence: row.confidence_score,
+                        context: context.clone(),
+                        status: row.status.clone(),
+                        created_at: created_at.clone(),
+                    });
                 }
             }
 
             // Process relations
             if let Some(relations) = row.extracted_relations.as_array() {
                 for relation in relations {
-                    if relation.as_object().is_some() {
-                        if let Ok(content) =
-                            serde_json::from_value::<ExtractedContent>(relation.clone())
-                        {
-                            results.push(PendingExtraction {
-                                id: row.id,
-                                document_id: row.document_id,
-                                document_title: row.document_title.clone(),
-                                extraction_type: "relation".to_string(),
-                                content,
-                                confidence: row.confidence_score,
-                                context: context.clone(),
-                                status: row.status.clone(),
-                                created_at: created_at.clone(),
-                            });
-                        }
+                    // Skip non-object relations
+                    if relation.as_object().is_none() {
+                        continue;
                     }
+
+                    // Try to parse relation content
+                    let Ok(content) = serde_json::from_value::<ExtractedContent>(relation.clone())
+                    else {
+                        continue;
+                    };
+
+                    results.push(PendingExtraction {
+                        id: row.id,
+                        document_id: row.document_id,
+                        document_title: row.document_title.clone(),
+                        extraction_type: "relation".to_string(),
+                        content,
+                        confidence: row.confidence_score,
+                        context: context.clone(),
+                        status: row.status.clone(),
+                        created_at: created_at.clone(),
+                    });
                 }
             }
 
