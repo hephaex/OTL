@@ -40,6 +40,119 @@ impl Default for DocxParser {
     }
 }
 
+impl DocxParser {
+    /// Extract text from a paragraph's runs
+    fn extract_paragraph_text(para: &docx_rs::Paragraph) -> String {
+        para.children
+            .iter()
+            .filter_map(|child| {
+                if let docx_rs::ParagraphChild::Run(run) = child {
+                    Some(run)
+                } else {
+                    None
+                }
+            })
+            .flat_map(|run| &run.children)
+            .filter_map(|run_child| {
+                if let docx_rs::RunChild::Text(text) = run_child {
+                    Some(text.text.as_str())
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    /// Check if paragraph is a heading and extract level
+    fn check_heading_style(para: &docx_rs::Paragraph) -> Option<u8> {
+        let style = para.property.style.as_ref()?;
+        let style_id = &style.val;
+
+        if !style_id.starts_with("Heading") && !style_id.starts_with("heading") {
+            return None;
+        }
+
+        Some(
+            style_id
+                .chars()
+                .last()
+                .and_then(|c| c.to_digit(10))
+                .unwrap_or(1) as u8,
+        )
+    }
+
+    /// Extract text from a table cell
+    fn extract_cell_text(cell: &docx_rs::TableCell) -> String {
+        cell.children
+            .iter()
+            .filter_map(|child| {
+                if let docx_rs::TableCellContent::Paragraph(para) = child {
+                    Some(para)
+                } else {
+                    None
+                }
+            })
+            .map(Self::extract_paragraph_text)
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
+
+    /// Save current section if it has content
+    fn save_section_if_needed(
+        sections: &mut Vec<DocumentSection>,
+        title: &mut Option<String>,
+        content: &mut String,
+        level: u8,
+    ) {
+        if content.trim().is_empty() && title.is_none() {
+            return;
+        }
+
+        sections.push(DocumentSection {
+            title: title.take(),
+            level,
+            content: content.trim().to_string(),
+            start_page: None,
+            children: Vec::new(),
+        });
+        content.clear();
+    }
+
+    /// Process a table and extract its data
+    fn process_table(tbl: &docx_rs::Table) -> Table {
+        let mut table = Table::new();
+        let mut rows_iter = tbl.rows.iter();
+
+        // First row as headers
+        if let Some(docx_rs::TableChild::TableRow(first_row)) = rows_iter.next() {
+            table.headers = first_row
+                .cells
+                .iter()
+                .map(|cell| {
+                    let docx_rs::TableRowChild::TableCell(tc) = cell;
+                    Self::extract_cell_text(tc).trim().to_string()
+                })
+                .collect();
+        }
+
+        // Remaining rows as data
+        for row in rows_iter {
+            let docx_rs::TableChild::TableRow(tr) = row;
+            let row_cells: Vec<String> = tr
+                .cells
+                .iter()
+                .map(|cell| {
+                    let docx_rs::TableRowChild::TableCell(tc) = cell;
+                    Self::extract_cell_text(tc).trim().to_string()
+                })
+                .collect();
+            table.rows.push(row_cells);
+        }
+
+        table
+    }
+}
+
 impl DocumentParser for DocxParser {
     fn parse(&self, path: &Path) -> Result<ParsedDocument> {
         let mut file = File::open(path).map_err(|e| ParserError::IoError {
@@ -67,95 +180,42 @@ impl DocumentParser for DocxParser {
         for child in docx.document.children {
             match child {
                 docx_rs::DocumentChild::Paragraph(para) => {
-                    let mut para_text = String::new();
-                    let mut is_heading = false;
-                    let mut heading_level = 0u8;
+                    let para_text = Self::extract_paragraph_text(&para);
+                    let heading_level = Self::check_heading_style(&para);
 
-                    // Check paragraph style for heading
-                    if let Some(style) = &para.property.style {
-                        let style_id = &style.val;
-                        if style_id.starts_with("Heading") || style_id.starts_with("heading") {
-                            is_heading = true;
-                            heading_level = style_id
-                                .chars()
-                                .last()
-                                .and_then(|c| c.to_digit(10))
-                                .unwrap_or(1) as u8;
-                        }
-                    }
-
-                    // Extract text from paragraph
-                    for child in &para.children {
-                        if let docx_rs::ParagraphChild::Run(run) = child {
-                            for run_child in &run.children {
-                                if let docx_rs::RunChild::Text(text) = run_child {
-                                    para_text.push_str(&text.text);
-                                }
-                            }
-                        }
-                    }
-
-                    if is_heading && !para_text.trim().is_empty() {
-                        // Save previous section
-                        if !current_section_content.trim().is_empty()
-                            || current_section_title.is_some()
-                        {
-                            sections.push(DocumentSection {
-                                title: current_section_title.take(),
-                                level: current_section_level,
-                                content: current_section_content.trim().to_string(),
-                                start_page: None,
-                                children: Vec::new(),
-                            });
-                            current_section_content.clear();
-                        }
-
-                        current_section_title = Some(para_text.trim().to_string());
-                        current_section_level = heading_level;
-                    } else {
+                    // Handle heading paragraphs
+                    let Some(level) = heading_level else {
+                        // Regular paragraph - add to current section
                         current_section_content.push_str(&para_text);
                         current_section_content.push('\n');
+                        content.push_str(&para_text);
+                        content.push('\n');
+                        continue;
+                    };
+
+                    // Skip empty headings
+                    if para_text.trim().is_empty() {
+                        content.push_str(&para_text);
+                        content.push('\n');
+                        continue;
                     }
+
+                    // Save previous section and start new one
+                    Self::save_section_if_needed(
+                        &mut sections,
+                        &mut current_section_title,
+                        &mut current_section_content,
+                        current_section_level,
+                    );
+
+                    current_section_title = Some(para_text.trim().to_string());
+                    current_section_level = level;
 
                     content.push_str(&para_text);
                     content.push('\n');
                 }
                 docx_rs::DocumentChild::Table(tbl) => {
-                    let mut table = Table::new();
-                    let mut is_first_row = true;
-
-                    for row in &tbl.rows {
-                        let docx_rs::TableChild::TableRow(tr) = row;
-                        let mut row_cells = Vec::new();
-
-                        for cell in &tr.cells {
-                            let docx_rs::TableRowChild::TableCell(tc) = cell;
-                            let mut cell_text = String::new();
-
-                            for child in &tc.children {
-                                if let docx_rs::TableCellContent::Paragraph(para) = child {
-                                    for para_child in &para.children {
-                                        if let docx_rs::ParagraphChild::Run(run) = para_child {
-                                            for run_child in &run.children {
-                                                if let docx_rs::RunChild::Text(text) = run_child {
-                                                    cell_text.push_str(&text.text);
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            row_cells.push(cell_text.trim().to_string());
-                        }
-
-                        if is_first_row {
-                            table.headers = row_cells;
-                            is_first_row = false;
-                        } else {
-                            table.rows.push(row_cells);
-                        }
-                    }
+                    let table = Self::process_table(&tbl);
 
                     // Add table to content as markdown
                     content.push_str(&table.to_markdown());
@@ -167,15 +227,12 @@ impl DocumentParser for DocxParser {
         }
 
         // Add final section
-        if !current_section_content.trim().is_empty() || current_section_title.is_some() {
-            sections.push(DocumentSection {
-                title: current_section_title,
-                level: current_section_level,
-                content: current_section_content.trim().to_string(),
-                start_page: None,
-                children: Vec::new(),
-            });
-        }
+        Self::save_section_if_needed(
+            &mut sections,
+            &mut current_section_title,
+            &mut current_section_content,
+            current_section_level,
+        );
 
         // Try to get title from first heading
         let title = sections.first().and_then(|s| s.title.clone());

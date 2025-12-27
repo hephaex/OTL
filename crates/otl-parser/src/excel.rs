@@ -60,6 +60,39 @@ impl ExcelParser {
             Data::DurationIso(s) => s.clone(),
         }
     }
+
+    /// Process a single sheet and return the table
+    fn process_sheet(
+        &self,
+        sheet_name: &str,
+        range: calamine::Range<Data>,
+    ) -> (Table, String) {
+        let mut table = Table::new();
+        table.caption = Some(sheet_name.to_string());
+
+        let mut rows_iter = range.rows();
+
+        // Handle first row as header
+        if self.first_row_header {
+            if let Some(first_row) = rows_iter.next() {
+                table.headers = first_row.iter().map(Self::cell_to_string).collect();
+            }
+        }
+
+        // Process remaining rows, filtering out empty ones
+        table.rows = rows_iter
+            .map(|row| row.iter().map(Self::cell_to_string).collect::<Vec<_>>())
+            .filter(|row_data: &Vec<String>| !row_data.iter().all(|s| s.is_empty()))
+            .collect();
+
+        // Generate content for this sheet
+        let mut content = String::new();
+        content.push_str(&format!("## {sheet_name}\n\n"));
+        content.push_str(&table.to_markdown());
+        content.push_str("\n\n");
+
+        (table, content)
+    }
 }
 
 impl Default for ExcelParser {
@@ -86,38 +119,13 @@ impl DocumentParser for ExcelParser {
                 }
             }
 
-            if let Ok(range) = workbook.worksheet_range(sheet_name) {
-                let mut table = Table::new();
-                table.caption = Some(sheet_name.clone());
+            let Ok(range) = workbook.worksheet_range(sheet_name) else {
+                continue;
+            };
 
-                let mut rows_iter = range.rows();
-
-                // Handle first row as header
-                if self.first_row_header {
-                    if let Some(first_row) = rows_iter.next() {
-                        table.headers = first_row.iter().map(Self::cell_to_string).collect();
-                    }
-                }
-
-                // Process remaining rows
-                for row in rows_iter {
-                    let row_data: Vec<String> = row.iter().map(Self::cell_to_string).collect();
-
-                    // Skip completely empty rows
-                    if row_data.iter().all(|s| s.is_empty()) {
-                        continue;
-                    }
-
-                    table.rows.push(row_data);
-                }
-
-                // Add sheet header to content
-                content.push_str(&format!("## {sheet_name}\n\n"));
-                content.push_str(&table.to_markdown());
-                content.push_str("\n\n");
-
-                tables.push(table);
-            }
+            let (table, sheet_content) = self.process_sheet(sheet_name, range);
+            content.push_str(&sheet_content);
+            tables.push(table);
         }
 
         let mut metadata = DocumentParseMetadata::default();
