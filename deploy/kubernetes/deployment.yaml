@@ -27,7 +27,7 @@ spec:
         fsGroup: 1000
       containers:
         - name: otl-api
-          image: ghcr.io/hephaex/otl-api:latest
+          image: ghcr.io/hephaex/otl-api:0.1.0
           imagePullPolicy: Always
           ports:
             - name: http
