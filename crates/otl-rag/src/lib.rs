@@ -19,10 +19,12 @@ use std::sync::Arc;
 use std::time::Instant;
 
 pub mod cache;
+pub mod keyword;
 pub mod llm;
 pub mod query_analysis;
 
 pub use cache::{CacheConfig, CacheStatsReport, EmbeddingCache, QueryCache, RagCacheManager};
+pub use keyword::{KeywordSearchConfig, PostgresKeywordSearch, SearchMode, SearchStatistics};
 pub use llm::{create_llm_client, OllamaClient, OpenAiClient};
 pub use query_analysis::{EnhancedQueryAnalysis, QueryAnalyzer, QueryIntentWithConfidence, SubQuery};
 
