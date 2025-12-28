@@ -93,6 +93,20 @@ impl AppConfig {
             config.logging.level = level;
         }
 
+        // Rate limiting
+        if let Ok(enabled) = std::env::var("RATE_LIMIT_ENABLED") {
+            config.server.rate_limit.enabled = enabled.parse().unwrap_or(true);
+        }
+        if let Ok(val) = std::env::var("RATE_LIMIT_AUTH_PER_MINUTE") {
+            config.server.rate_limit.auth_requests_per_minute = val.parse().unwrap_or(5);
+        }
+        if let Ok(val) = std::env::var("RATE_LIMIT_STREAMING_PER_MINUTE") {
+            config.server.rate_limit.streaming_requests_per_minute = val.parse().unwrap_or(10);
+        }
+        if let Ok(val) = std::env::var("RATE_LIMIT_API_PER_MINUTE") {
+            config.server.rate_limit.api_requests_per_minute = val.parse().unwrap_or(100);
+        }
+
         Ok(config)
     }
 
@@ -151,6 +165,9 @@ pub struct ServerConfig {
 
     /// Allowed origins for CORS
     pub cors_origins: Vec<String>,
+
+    /// Rate limiting configuration
+    pub rate_limit: RateLimitConfig,
 }
 
 impl Default for ServerConfig {
@@ -163,6 +180,49 @@ impl Default for ServerConfig {
             cors_enabled: true,
             // Empty by default for security - set via CORS_ORIGINS env var
             cors_origins: vec![],
+            rate_limit: RateLimitConfig::default(),
+        }
+    }
+}
+
+/// Rate limiting configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RateLimitConfig {
+    /// Enable rate limiting
+    pub enabled: bool,
+
+    /// Auth endpoints: requests per minute
+    pub auth_requests_per_minute: u32,
+
+    /// Auth endpoints: burst size
+    pub auth_burst_size: u32,
+
+    /// Streaming endpoints: requests per minute
+    pub streaming_requests_per_minute: u32,
+
+    /// Streaming endpoints: burst size
+    pub streaming_burst_size: u32,
+
+    /// API endpoints: requests per minute
+    pub api_requests_per_minute: u32,
+
+    /// API endpoints: burst size
+    pub api_burst_size: u32,
+}
+
+impl Default for RateLimitConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            // Auth: 5 requests per minute (prevent brute force)
+            auth_requests_per_minute: 5,
+            auth_burst_size: 5,
+            // Streaming: 10 requests per minute (resource intensive)
+            streaming_requests_per_minute: 10,
+            streaming_burst_size: 10,
+            // API: 100 requests per minute (normal operations)
+            api_requests_per_minute: 100,
+            api_burst_size: 100,
         }
     }
 }
