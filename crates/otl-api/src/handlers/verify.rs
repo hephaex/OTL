@@ -576,6 +576,429 @@ pub struct RelationStats {
     pub approval_rate: f32,
 }
 
+/// Batch approve extractions
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct BatchApproveRequest {
+    /// List of extraction IDs to approve
+    pub ids: Vec<Uuid>,
+    /// Optional notes for all items
+    pub notes: Option<String>,
+}
+
+/// Batch reject extractions
+#[derive(Debug, Deserialize, ToSchema)]
+pub struct BatchRejectRequest {
+    /// List of extraction IDs to reject
+    pub ids: Vec<Uuid>,
+    /// Reason for rejection
+    pub reason: String,
+}
+
+/// Batch operation response
+#[derive(Debug, Serialize)]
+pub struct BatchOperationResponse {
+    pub succeeded: Vec<Uuid>,
+    pub failed: Vec<Uuid>,
+    pub success_count: usize,
+    pub failure_count: usize,
+    pub success_rate: f32,
+}
+
+/// Batch approve extractions
+#[utoipa::path(
+    post,
+    path = "/api/v1/verify/batch/approve",
+    tag = "verify",
+    request_body = BatchApproveRequest,
+    responses(
+        (status = 200, description = "Batch approval completed"),
+        (status = 401, description = "Unauthorized")
+    )
+)]
+pub async fn batch_approve(
+    State(state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedUser>,
+    Json(request): Json<BatchApproveRequest>,
+) -> Result<impl IntoResponse, AppError> {
+    state.increment_requests();
+
+    if request.ids.is_empty() {
+        return Err(AppError::BadRequest("No IDs provided".to_string()));
+    }
+
+    let mut succeeded = Vec::new();
+    let mut failed = Vec::new();
+
+    // Process each ID
+    for id in &request.ids {
+        // Start transaction
+        let mut tx = state
+            .db_pool
+            .begin()
+            .await
+            .map_err(|e| AppError::Internal(format!("Failed to start transaction: {e}")))?;
+
+        // Check status
+        let current_status: Option<String> = sqlx::query_scalar(
+            r#"
+            SELECT status::text
+            FROM extraction_queue
+            WHERE id = $1
+            "#,
+        )
+        .bind(id)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(|e| AppError::Internal(format!("Failed to check status: {e}")))?;
+
+        if let Some(status) = current_status {
+            if status == "pending" {
+                // Update to approved
+                let result = sqlx::query(
+                    r#"
+                    UPDATE extraction_queue
+                    SET status = 'approved',
+                        reviewer_id = $1,
+                        review_notes = $2,
+                        reviewed_at = $3
+                    WHERE id = $4
+                    "#,
+                )
+                .bind(user.user_id.to_string())
+                .bind(&request.notes)
+                .bind(Utc::now())
+                .bind(id)
+                .execute(&mut *tx)
+                .await;
+
+                if result.is_ok() && result.unwrap().rows_affected() > 0 {
+                    tx.commit().await.ok();
+                    succeeded.push(*id);
+                } else {
+                    tx.rollback().await.ok();
+                    failed.push(*id);
+                }
+            } else {
+                tx.rollback().await.ok();
+                failed.push(*id);
+            }
+        } else {
+            tx.rollback().await.ok();
+            failed.push(*id);
+        }
+    }
+
+    let success_count = succeeded.len();
+    let failure_count = failed.len();
+    let total = success_count + failure_count;
+    let success_rate = if total > 0 {
+        success_count as f32 / total as f32
+    } else {
+        0.0
+    };
+
+    let response = BatchOperationResponse {
+        succeeded,
+        failed,
+        success_count,
+        failure_count,
+        success_rate,
+    };
+
+    Ok((StatusCode::OK, Json(response)))
+}
+
+/// Batch reject extractions
+#[utoipa::path(
+    post,
+    path = "/api/v1/verify/batch/reject",
+    tag = "verify",
+    request_body = BatchRejectRequest,
+    responses(
+        (status = 200, description = "Batch rejection completed"),
+        (status = 401, description = "Unauthorized")
+    )
+)]
+pub async fn batch_reject(
+    State(state): State<Arc<AppState>>,
+    Extension(user): Extension<AuthenticatedUser>,
+    Json(request): Json<BatchRejectRequest>,
+) -> Result<impl IntoResponse, AppError> {
+    state.increment_requests();
+
+    if request.ids.is_empty() {
+        return Err(AppError::BadRequest("No IDs provided".to_string()));
+    }
+
+    let mut succeeded = Vec::new();
+    let mut failed = Vec::new();
+
+    // Process each ID
+    for id in &request.ids {
+        // Start transaction
+        let mut tx = state
+            .db_pool
+            .begin()
+            .await
+            .map_err(|e| AppError::Internal(format!("Failed to start transaction: {e}")))?;
+
+        // Check status
+        let current_status: Option<String> = sqlx::query_scalar(
+            r#"
+            SELECT status::text
+            FROM extraction_queue
+            WHERE id = $1
+            "#,
+        )
+        .bind(id)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(|e| AppError::Internal(format!("Failed to check status: {e}")))?;
+
+        if let Some(status) = current_status {
+            if status == "pending" {
+                // Update to rejected
+                let review_notes = format!("REJECTED: {}", request.reason);
+                let result = sqlx::query(
+                    r#"
+                    UPDATE extraction_queue
+                    SET status = 'rejected',
+                        reviewer_id = $1,
+                        review_notes = $2,
+                        reviewed_at = $3
+                    WHERE id = $4
+                    "#,
+                )
+                .bind(user.user_id.to_string())
+                .bind(review_notes)
+                .bind(Utc::now())
+                .bind(id)
+                .execute(&mut *tx)
+                .await;
+
+                if result.is_ok() && result.unwrap().rows_affected() > 0 {
+                    tx.commit().await.ok();
+                    succeeded.push(*id);
+                } else {
+                    tx.rollback().await.ok();
+                    failed.push(*id);
+                }
+            } else {
+                tx.rollback().await.ok();
+                failed.push(*id);
+            }
+        } else {
+            tx.rollback().await.ok();
+            failed.push(*id);
+        }
+    }
+
+    let success_count = succeeded.len();
+    let failure_count = failed.len();
+    let total = success_count + failure_count;
+    let success_rate = if total > 0 {
+        success_count as f32 / total as f32
+    } else {
+        0.0
+    };
+
+    let response = BatchOperationResponse {
+        succeeded,
+        failed,
+        success_count,
+        failure_count,
+        success_rate,
+    };
+
+    Ok((StatusCode::OK, Json(response)))
+}
+
+/// Quality metrics response
+#[derive(Debug, Serialize)]
+pub struct QualityMetricsResponse {
+    /// Precision: approved / (approved + rejected)
+    pub precision: f32,
+
+    /// Auto-approval rate
+    pub auto_approval_rate: f32,
+
+    /// Correction rate
+    pub correction_rate: f32,
+
+    /// Average confidence of approved items
+    pub avg_approved_confidence: f32,
+
+    /// Average confidence of rejected items
+    pub avg_rejected_confidence: f32,
+
+    /// Distribution across confidence thresholds
+    pub confidence_distribution: ConfidenceDistribution,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ConfidenceDistribution {
+    /// High confidence (>= 0.9)
+    pub high: u32,
+    /// Medium confidence (0.7 - 0.9)
+    pub medium: u32,
+    /// Low confidence (< 0.7)
+    pub low: u32,
+}
+
+/// Get quality metrics
+#[utoipa::path(
+    get,
+    path = "/api/v1/verify/metrics",
+    tag = "verify",
+    responses(
+        (status = 200, description = "Quality metrics"),
+        (status = 401, description = "Unauthorized")
+    )
+)]
+pub async fn get_quality_metrics(
+    State(state): State<Arc<AppState>>,
+) -> Result<impl IntoResponse, AppError> {
+    state.increment_requests();
+
+    // Query approved items
+    let approved_count: i64 = sqlx::query_scalar(
+        r#"
+        SELECT COUNT(*)
+        FROM extraction_queue
+        WHERE status = 'approved'
+        "#,
+    )
+    .fetch_one(&state.db_pool)
+    .await
+    .unwrap_or(0);
+
+    let rejected_count: i64 = sqlx::query_scalar(
+        r#"
+        SELECT COUNT(*)
+        FROM extraction_queue
+        WHERE status = 'rejected'
+        "#,
+    )
+    .fetch_one(&state.db_pool)
+    .await
+    .unwrap_or(0);
+
+    let total_reviewed = approved_count + rejected_count;
+    let precision = if total_reviewed > 0 {
+        approved_count as f32 / total_reviewed as f32
+    } else {
+        0.0
+    };
+
+    // Auto-approval rate
+    let auto_approved_count: i64 = sqlx::query_scalar(
+        r#"
+        SELECT COUNT(*)
+        FROM extraction_queue
+        WHERE status = 'approved' AND confidence_score >= 0.9
+        "#,
+    )
+    .fetch_one(&state.db_pool)
+    .await
+    .unwrap_or(0);
+
+    let auto_approval_rate = if total_reviewed > 0 {
+        auto_approved_count as f32 / total_reviewed as f32
+    } else {
+        0.0
+    };
+
+    // Correction rate (items with review notes)
+    let corrected_count: i64 = sqlx::query_scalar(
+        r#"
+        SELECT COUNT(*)
+        FROM extraction_queue
+        WHERE status = 'approved' AND review_notes IS NOT NULL
+        "#,
+    )
+    .fetch_one(&state.db_pool)
+    .await
+    .unwrap_or(0);
+
+    let correction_rate = if total_reviewed > 0 {
+        corrected_count as f32 / total_reviewed as f32
+    } else {
+        0.0
+    };
+
+    // Average confidences
+    let avg_approved: Option<f32> = sqlx::query_scalar(
+        r#"
+        SELECT AVG(confidence_score)
+        FROM extraction_queue
+        WHERE status = 'approved'
+        "#,
+    )
+    .fetch_one(&state.db_pool)
+    .await
+    .unwrap_or(None);
+
+    let avg_rejected: Option<f32> = sqlx::query_scalar(
+        r#"
+        SELECT AVG(confidence_score)
+        FROM extraction_queue
+        WHERE status = 'rejected'
+        "#,
+    )
+    .fetch_one(&state.db_pool)
+    .await
+    .unwrap_or(None);
+
+    // Confidence distribution
+    let high_conf: i64 = sqlx::query_scalar(
+        r#"
+        SELECT COUNT(*)
+        FROM extraction_queue
+        WHERE confidence_score >= 0.9
+        "#,
+    )
+    .fetch_one(&state.db_pool)
+    .await
+    .unwrap_or(0);
+
+    let medium_conf: i64 = sqlx::query_scalar(
+        r#"
+        SELECT COUNT(*)
+        FROM extraction_queue
+        WHERE confidence_score >= 0.7 AND confidence_score < 0.9
+        "#,
+    )
+    .fetch_one(&state.db_pool)
+    .await
+    .unwrap_or(0);
+
+    let low_conf: i64 = sqlx::query_scalar(
+        r#"
+        SELECT COUNT(*)
+        FROM extraction_queue
+        WHERE confidence_score < 0.7
+        "#,
+    )
+    .fetch_one(&state.db_pool)
+    .await
+    .unwrap_or(0);
+
+    let metrics = QualityMetricsResponse {
+        precision,
+        auto_approval_rate,
+        correction_rate,
+        avg_approved_confidence: avg_approved.unwrap_or(0.0),
+        avg_rejected_confidence: avg_rejected.unwrap_or(0.0),
+        confidence_distribution: ConfidenceDistribution {
+            high: high_conf as u32,
+            medium: medium_conf as u32,
+            low: low_conf as u32,
+        },
+    };
+
+    Ok((StatusCode::OK, Json(metrics)))
+}
+
 /// Get verification statistics
 pub async fn get_stats(State(state): State<Arc<AppState>>) -> Result<impl IntoResponse, AppError> {
     state.increment_requests();
