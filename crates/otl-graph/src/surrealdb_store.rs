@@ -111,6 +111,10 @@ impl From<&SourceReference> for SourceRecord {
 
 #[async_trait]
 impl super::GraphStore for SurrealDbStore {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
     async fn store_entity(&self, entity: &Entity) -> Result<()> {
         let record = EntityRecord {
             id: None,
