@@ -84,6 +84,8 @@ jobs:
     name: Build Linux (x86_64)
     runs-on: ubuntu-latest
     needs: create-release
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -101,12 +103,12 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Build release binary
-        run: cargo build --release -p otl-api
+        run: cargo build --release -p otl-api --target x86_64-unknown-linux-gnu
 
       - name: Package binary
         run: |
           mkdir -p dist
-          cp target/release/otl-api dist/
+          cp target/x86_64-unknown-linux-gnu/release/otl-api dist/ || cp target/release/otl-api dist/
           cd dist
           tar -czvf otl-api-${{ needs.create-release.outputs.version }}-linux-x86_64.tar.gz otl-api
           sha256sum otl-api-${{ needs.create-release.outputs.version }}-linux-x86_64.tar.gz > otl-api-${{ needs.create-release.outputs.version }}-linux-x86_64.tar.gz.sha256
