@@ -9,9 +9,21 @@ use async_trait::async_trait;
 use otl_core::{Entity, Result, Triple};
 use uuid::Uuid;
 
+pub mod ontology;
+pub mod ontology_io;
+pub mod ontology_repository;
 pub mod search;
 pub mod surrealdb_store;
 
+pub use ontology::{
+    Constraint, EntityTypeDef, EntityTypeChanges, OntologySchema, PropertyDef, PropertyType,
+    RelationCardinality, RelationTypeDef, RelationTypeChanges, SchemaChange, SchemaDiff,
+    SchemaMigration,
+};
+pub use ontology_io::{
+    export_json, export_owl, export_rdf_turtle, export_yaml, import_json, import_yaml,
+};
+pub use ontology_repository::{OntologyRepository, SchemaVersionInfo, SurrealOntologyRepository};
 pub use search::GraphSearchBackend;
 pub use surrealdb_store::SurrealDbStore;
 
@@ -35,4 +47,7 @@ pub trait GraphStore: Send + Sync {
 
     /// Execute a graph query
     async fn query(&self, query: &str) -> Result<Vec<Entity>>;
+
+    /// Downcast to concrete type (for accessing specific implementation features)
+    fn as_any(&self) -> &dyn std::any::Any;
 }

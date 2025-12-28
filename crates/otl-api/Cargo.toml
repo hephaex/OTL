@@ -49,6 +49,7 @@ sqlx = { workspace = true }
 chrono = { workspace = true }
 prometheus = { version = "0.14", features = ["process"] }
 lazy_static = "1.4"
+semver = { version = "1.0", features = ["serde"] }
 
 [dev-dependencies]
 otl-api = { path = ".", features = ["test-utils"] }

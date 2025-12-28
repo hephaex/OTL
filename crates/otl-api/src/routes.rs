@@ -3,7 +3,7 @@
 //! Author: hephaex@gmail.com
 
 use crate::auth::middleware::auth_middleware;
-use crate::handlers::{auth, documents, graph, query, verify};
+use crate::handlers::{auth, documents, graph, ontology, query, verify};
 use crate::middleware::rate_limit;
 use crate::state::AppState;
 use axum::{
@@ -62,9 +62,18 @@ pub fn api_routes(state: Arc<AppState>) -> Router<Arc<AppState>> {
             .route("/graph/entities", get(graph::list_entities))
             .route("/graph/entities/:id", get(graph::get_entity))
             .route("/graph/search", post(graph::search_graph))
-            // Ontology endpoints
+            // Ontology endpoints (legacy)
             .route("/ontology", get(graph::get_ontology))
             .route("/ontology", put(graph::update_ontology))
+            // Ontology management endpoints (new)
+            .route("/ontology/schema", get(ontology::get_current_schema))
+            .route("/ontology/schema", post(ontology::create_schema))
+            .route("/ontology/schema/:version", get(ontology::get_schema_version))
+            .route("/ontology/schema/versions", get(ontology::list_schema_versions))
+            .route("/ontology/schema/diff", get(ontology::compare_schemas))
+            .route("/ontology/schema/export", get(ontology::export_schema))
+            .route("/ontology/schema/import", post(ontology::import_schema))
+            .route("/ontology/schema/validate", post(ontology::validate_schema))
             // Verification endpoints
             .route("/verify/pending", get(verify::list_pending))
             .route("/verify/:id/approve", post(verify::approve_extraction))
@@ -90,9 +99,18 @@ pub fn api_routes(state: Arc<AppState>) -> Router<Arc<AppState>> {
             .route("/graph/entities", get(graph::list_entities))
             .route("/graph/entities/:id", get(graph::get_entity))
             .route("/graph/search", post(graph::search_graph))
-            // Ontology endpoints
+            // Ontology endpoints (legacy)
             .route("/ontology", get(graph::get_ontology))
             .route("/ontology", put(graph::update_ontology))
+            // Ontology management endpoints (new)
+            .route("/ontology/schema", get(ontology::get_current_schema))
+            .route("/ontology/schema", post(ontology::create_schema))
+            .route("/ontology/schema/:version", get(ontology::get_schema_version))
+            .route("/ontology/schema/versions", get(ontology::list_schema_versions))
+            .route("/ontology/schema/diff", get(ontology::compare_schemas))
+            .route("/ontology/schema/export", get(ontology::export_schema))
+            .route("/ontology/schema/import", post(ontology::import_schema))
+            .route("/ontology/schema/validate", post(ontology::validate_schema))
             // Verification endpoints
             .route("/verify/pending", get(verify::list_pending))
             .route("/verify/:id/approve", post(verify::approve_extraction))
