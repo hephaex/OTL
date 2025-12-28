@@ -15,7 +15,10 @@
 
 #![allow(clippy::uninlined_format_args)]
 
+mod ingest;
+
 use std::io::{self, Write};
+use std::path::PathBuf;
 use std::sync::Mutex;
 
 use clap::{Parser, Subcommand};
@@ -23,12 +26,16 @@ use futures::StreamExt;
 use once_cell::sync::Lazy;
 use uuid::Uuid;
 
+use otl_core::config::AppConfig;
 use otl_core::LlmClient;
 use otl_extractor::hitl::VerificationQueue;
 use otl_extractor::ner::RuleBasedNer;
 use otl_extractor::relation::RuleBasedRe;
 use otl_extractor::{EntityExtractor, RelationExtractor};
+use otl_parser::ChunkConfig;
 use otl_rag::OllamaClient;
+
+use crate::ingest::{IngestConfig, IngestEngine};
 
 // Global verification queue (in production, this would be backed by a database)
 static VERIFICATION_QUEUE: Lazy<Mutex<VerificationQueue>> =
@@ -47,8 +54,52 @@ struct Cli {
 enum Commands {
     /// Ingest documents into the knowledge base
     Ingest {
-        /// Path to documents
-        path: String,
+        /// Path to documents (file or directory)
+        path: PathBuf,
+
+        /// Watch directory for changes
+        #[arg(short, long)]
+        watch: bool,
+
+        /// Number of parallel workers
+        #[arg(short, long, default_value = "4")]
+        parallel: usize,
+
+        /// Batch size for processing
+        #[arg(short, long, default_value = "100")]
+        batch_size: usize,
+
+        /// Show progress bars
+        #[arg(long, default_value = "true")]
+        progress: bool,
+
+        /// Dry run (validation only, no indexing)
+        #[arg(long)]
+        dry_run: bool,
+
+        /// Resume from checkpoint
+        #[arg(long)]
+        resume: bool,
+
+        /// Checkpoint file path
+        #[arg(long, default_value = ".otl_ingest_checkpoint.json")]
+        checkpoint: PathBuf,
+
+        /// Maximum retries per file
+        #[arg(long, default_value = "3")]
+        max_retries: u32,
+
+        /// Don't skip already processed files
+        #[arg(long)]
+        no_skip_processed: bool,
+
+        /// Chunk size in characters
+        #[arg(long, default_value = "1000")]
+        chunk_size: usize,
+
+        /// Chunk overlap in characters
+        #[arg(long, default_value = "200")]
+        chunk_overlap: usize,
     },
     /// Query the knowledge base using RAG
     Query {
@@ -127,9 +178,35 @@ async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Ingest { path } => {
-            println!("Ingesting documents from: {path}");
-            // TODO: Implement ingestion
+        Commands::Ingest {
+            path,
+            watch,
+            parallel,
+            batch_size,
+            progress,
+            dry_run,
+            resume,
+            checkpoint,
+            max_retries,
+            no_skip_processed,
+            chunk_size,
+            chunk_overlap,
+        } => {
+            cmd_ingest(
+                &path,
+                watch,
+                parallel,
+                batch_size,
+                progress,
+                dry_run,
+                resume,
+                &checkpoint,
+                max_retries,
+                !no_skip_processed,
+                chunk_size,
+                chunk_overlap,
+            )
+            .await?;
         }
         Commands::Query {
             question,
@@ -514,5 +591,65 @@ async fn cmd_query(
     }
 
     println!("---");
+    Ok(())
+}
+
+/// Ingest documents into the knowledge base
+async fn cmd_ingest(
+    path: &PathBuf,
+    watch: bool,
+    parallel: usize,
+    batch_size: usize,
+    progress: bool,
+    dry_run: bool,
+    resume: bool,
+    checkpoint: &PathBuf,
+    max_retries: u32,
+    skip_processed: bool,
+    chunk_size: usize,
+    chunk_overlap: usize,
+) -> anyhow::Result<()> {
+    use crate::ingest::validate_path;
+
+    // Validate path
+    validate_path(path)?;
+
+    // Load application config
+    let app_config = AppConfig::from_env().unwrap_or_default();
+
+    // Build ingest config
+    let ingest_config = IngestConfig {
+        parallel_workers: parallel,
+        batch_size,
+        watch,
+        show_progress: progress,
+        dry_run,
+        resume,
+        checkpoint_path: checkpoint.clone(),
+        max_retries,
+        retry_delay_secs: 2,
+        chunk_config: ChunkConfig {
+            chunk_size,
+            overlap: chunk_overlap,
+            min_chunk_size: 100,
+            respect_sections: true,
+            respect_paragraphs: true,
+        },
+        skip_processed,
+    };
+
+    if dry_run {
+        println!("=== DRY RUN MODE ===");
+        println!("No documents will be indexed\n");
+    }
+
+    if resume && checkpoint.exists() {
+        println!("Resuming from checkpoint: {}", checkpoint.display());
+    }
+
+    // Create and run ingestion engine
+    let mut engine = IngestEngine::new(ingest_config, &app_config).await?;
+    engine.ingest(path).await?;
+
     Ok(())
 }
