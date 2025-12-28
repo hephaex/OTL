@@ -69,7 +69,10 @@ pub fn api_routes(state: Arc<AppState>) -> Router<Arc<AppState>> {
             .route("/verify/pending", get(verify::list_pending))
             .route("/verify/:id/approve", post(verify::approve_extraction))
             .route("/verify/:id/reject", post(verify::reject_extraction))
+            .route("/verify/batch/approve", post(verify::batch_approve))
+            .route("/verify/batch/reject", post(verify::batch_reject))
             .route("/verify/stats", get(verify::get_stats))
+            .route("/verify/metrics", get(verify::get_quality_metrics))
             .layer(middleware::from_fn(auth_middleware))
             .layer(rate_limit::api_rate_limit_layer(rate_limit_config))
     } else {
@@ -94,7 +97,10 @@ pub fn api_routes(state: Arc<AppState>) -> Router<Arc<AppState>> {
             .route("/verify/pending", get(verify::list_pending))
             .route("/verify/:id/approve", post(verify::approve_extraction))
             .route("/verify/:id/reject", post(verify::reject_extraction))
+            .route("/verify/batch/approve", post(verify::batch_approve))
+            .route("/verify/batch/reject", post(verify::batch_reject))
             .route("/verify/stats", get(verify::get_stats))
+            .route("/verify/metrics", get(verify::get_quality_metrics))
             .layer(middleware::from_fn(auth_middleware))
     };
 
