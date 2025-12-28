@@ -20,9 +20,11 @@ use std::time::Instant;
 
 pub mod cache;
 pub mod llm;
+pub mod query_analysis;
 
 pub use cache::{CacheConfig, CacheStatsReport, EmbeddingCache, QueryCache, RagCacheManager};
 pub use llm::{create_llm_client, OllamaClient, OpenAiClient};
+pub use query_analysis::{EnhancedQueryAnalysis, QueryAnalyzer, QueryIntentWithConfidence, SubQuery};
 
 // ============================================================================
 // Configuration
@@ -84,68 +86,10 @@ impl Default for RagConfig {
 }
 
 // ============================================================================
-// Query Analysis
+// Legacy Query Analysis Types (kept for backward compatibility)
 // ============================================================================
-
-/// Analysis of a user query
-#[derive(Debug, Clone)]
-pub struct QueryAnalysis {
-    /// Original question
-    pub question: String,
-
-    /// Detected intent
-    pub intent: QueryIntent,
-
-    /// Entities detected in the question
-    pub detected_entities: Vec<DetectedEntity>,
-
-    /// Keywords extracted
-    pub keywords: Vec<String>,
-
-    /// Expected answer type
-    pub expected_answer_type: AnswerType,
-}
-
-/// Type of user intent
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum QueryIntent {
-    /// Looking for a procedure/process
-    Procedural,
-    /// Looking for a specific fact
-    Factual,
-    /// Comparing things
-    Comparative,
-    /// Conditional question
-    Conditional,
-    /// Definition/explanation
-    Definitional,
-    /// Unknown/general
-    General,
-}
-
-/// An entity detected in the query
-#[derive(Debug, Clone)]
-pub struct DetectedEntity {
-    /// Entity text
-    pub text: String,
-    /// Entity type (class from ontology)
-    pub entity_type: Option<String>,
-    /// Start position in query
-    pub start: usize,
-    /// End position in query
-    pub end: usize,
-}
-
-/// Expected answer type
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum AnswerType {
-    List,
-    SingleFact,
-    Explanation,
-    Comparison,
-    YesNo,
-    Unknown,
-}
+// Note: These are now deprecated in favor of the enhanced query analysis
+// in query_analysis.rs module
 
 // ============================================================================
 // RAG Orchestrator
@@ -170,6 +114,9 @@ pub struct HybridRagOrchestrator {
 
     /// Ontology schema (for prompt context)
     ontology_schema: Option<String>,
+
+    /// Query analyzer for advanced query understanding
+    query_analyzer: QueryAnalyzer,
 }
 
 impl HybridRagOrchestrator {
@@ -180,6 +127,7 @@ impl HybridRagOrchestrator {
         llm_client: Arc<dyn LlmClient>,
         config: RagConfig,
     ) -> Self {
+        let query_analyzer = QueryAnalyzer::new(llm_client.clone());
         Self {
             vector_store,
             graph_store,
@@ -187,6 +135,7 @@ impl HybridRagOrchestrator {
             llm_client,
             config,
             ontology_schema: None,
+            query_analyzer,
         }
     }
 
@@ -208,21 +157,34 @@ impl HybridRagOrchestrator {
 
         tracing::info!("RAG query started");
 
-        // 1. Analyze the question
-        let analysis = self.analyze_query(&query.question).await?;
-        tracing::debug!("Query analyzed: intent={:?}", analysis.intent);
+        // 1. Analyze the question with enhanced query analysis
+        let analysis = self.query_analyzer.analyze(&query.question).await?;
+        tracing::debug!(
+            "Query analyzed: {} intents detected, {} sub-queries, overall confidence: {:.2}",
+            analysis.intents.len(),
+            analysis.sub_queries.len(),
+            analysis.overall_confidence
+        );
 
-        // 2. Execute searches in parallel
-        tracing::debug!("Executing parallel searches");
-        let (vector_results, graph_results, keyword_results) = tokio::join!(
+        // 2. Use rewritten query for better retrieval
+        let search_query = if !analysis.rewritten_query.is_empty() {
+            &analysis.rewritten_query
+        } else {
+            &query.question
+        };
+
+        // 3. Execute searches in parallel using enhanced analysis
+        tracing::debug!("Executing parallel searches with rewritten query");
+        let (vector_results, graph_results, keyword_results, expanded_results) = tokio::join!(
             self.vector_store
-                .search(&query.question, self.config.vector_top_k),
-            self.search_graph_context(&analysis),
-            self.search_keywords(&analysis)
+                .search(search_query, self.config.vector_top_k),
+            self.search_graph_context_enhanced(&analysis),
+            self.search_keywords_enhanced(&analysis),
+            self.search_with_expansions(&analysis)
         );
         tracing::debug!("Searches completed");
 
-        // 3. Collect results
+        // 4. Collect results from all sources
         let mut all_results = Vec::new();
 
         if let Ok(results) = vector_results {
@@ -240,122 +202,90 @@ impl HybridRagOrchestrator {
             all_results.extend(results);
         }
 
-        // 4. ACL filtering
+        if let Ok(results) = expanded_results {
+            tracing::debug!("Expanded query search returned {} results", results.len());
+            all_results.extend(results);
+        }
+
+        // 5. ACL filtering
         let filtered_results = self.filter_by_acl(all_results, user);
         tracing::debug!("ACL filtered to {} results", filtered_results.len());
 
-        // 5. Merge and rank results using RRF
+        // 6. Merge and rank results using RRF
         let merged_results = self.merge_results(filtered_results);
         tracing::debug!("Merged to {} results", merged_results.len());
 
-        // 6. Take top-k
+        // 7. Take top-k
         let final_results: Vec<_> = merged_results
             .into_iter()
             .take(self.config.final_top_k)
             .collect();
         tracing::debug!("Final top-k: {} results", final_results.len());
 
-        // 7. Build prompt and generate response
-        let prompt = self.build_prompt(&query.question, &final_results, &analysis);
+        // 8. Build prompt and generate response with enhanced analysis context
+        let prompt = self.build_prompt_enhanced(&query.question, &final_results, &analysis);
         tracing::info!("Calling LLM with prompt length: {} chars", prompt.len());
         let answer = self.llm_client.generate(&prompt).await?;
         tracing::info!("LLM response received: {} chars", answer.len());
 
-        // 8. Extract citations
+        // 9. Extract citations
         let citations = self.extract_citations(&answer, &final_results);
 
         let processing_time_ms = start_time.elapsed().as_millis() as u64;
 
+        // 10. Calculate confidence based on both search results and query analysis
+        let confidence = self.calculate_confidence_enhanced(&final_results, &analysis);
+
         Ok(RagResponse {
             answer,
             citations,
-            confidence: self.calculate_confidence(&final_results),
+            confidence,
             processing_time_ms,
         })
     }
 
-    /// Analyze the query to extract intent, entities, and keywords
-    async fn analyze_query(&self, question: &str) -> Result<QueryAnalysis> {
-        // Simple rule-based analysis (can be enhanced with LLM)
-        let question_lower = question.to_lowercase();
+    /// Search graph for context related to detected entities (enhanced)
+    async fn search_graph_context_enhanced(
+        &self,
+        analysis: &EnhancedQueryAnalysis,
+    ) -> Result<Vec<SearchResult>> {
+        // Use keywords and entities as starting points for graph traversal
+        let mut search_terms = analysis.keywords.clone();
+        search_terms.extend(analysis.entities.iter().map(|e| e.text.clone()));
 
-        // Detect intent
-        let intent = if question_lower.contains("어떻게")
-            || question_lower.contains("절차")
-            || question_lower.contains("방법")
-            || question_lower.contains("how")
-        {
-            QueryIntent::Procedural
-        } else if question_lower.contains("차이")
-            || question_lower.contains("비교")
-            || question_lower.contains("vs")
-        {
-            QueryIntent::Comparative
-        } else if question_lower.contains("무엇")
-            || question_lower.contains("뭐")
-            || question_lower.contains("what is")
-        {
-            QueryIntent::Definitional
-        } else if question_lower.contains("며칠")
-            || question_lower.contains("몇")
-            || question_lower.contains("언제")
-        {
-            QueryIntent::Factual
-        } else if question_lower.contains("경우")
-            || question_lower.contains("만약")
-            || question_lower.contains("if")
-        {
-            QueryIntent::Conditional
-        } else {
-            QueryIntent::General
-        };
-
-        // Determine expected answer type
-        let expected_answer_type = match intent {
-            QueryIntent::Procedural => AnswerType::List,
-            QueryIntent::Comparative => AnswerType::Comparison,
-            QueryIntent::Factual => AnswerType::SingleFact,
-            QueryIntent::Definitional => AnswerType::Explanation,
-            _ => AnswerType::Unknown,
-        };
-
-        // Extract keywords (simple whitespace tokenization, filter stopwords)
-        let stopwords = [
-            "은", "는", "이", "가", "를", "을", "의", "에", "와", "과", "the", "a", "is", "are",
-            "what", "how",
-        ];
-        let keywords: Vec<String> = question
-            .split_whitespace()
-            .filter(|w| w.len() > 1 && !stopwords.contains(&w.to_lowercase().as_str()))
-            .map(|s| s.to_string())
-            .collect();
-
-        Ok(QueryAnalysis {
-            question: question.to_string(),
-            intent,
-            detected_entities: Vec::new(), // Would be populated by NER
-            keywords,
-            expected_answer_type,
-        })
-    }
-
-    /// Search graph for context related to detected entities
-    async fn search_graph_context(&self, analysis: &QueryAnalysis) -> Result<Vec<SearchResult>> {
-        // Use keywords as starting points for graph traversal
-        let query = analysis.keywords.join(" ");
+        let query = search_terms.join(" ");
         self.graph_store
             .search(&query, self.config.vector_top_k)
             .await
     }
 
-    /// Search keywords if keyword store is available
-    async fn search_keywords(&self, analysis: &QueryAnalysis) -> Result<Vec<SearchResult>> {
+    /// Search keywords if keyword store is available (enhanced)
+    async fn search_keywords_enhanced(
+        &self,
+        analysis: &EnhancedQueryAnalysis,
+    ) -> Result<Vec<SearchResult>> {
         if let Some(ref store) = self.keyword_store {
             let query = analysis.keywords.join(" ");
             store.search(&query, self.config.keyword_top_k).await
         } else {
             Ok(Vec::new())
         }
+    }
+
+    /// Search with expanded queries using synonyms
+    async fn search_with_expansions(
+        &self,
+        analysis: &EnhancedQueryAnalysis,
+    ) -> Result<Vec<SearchResult>> {
+        if analysis.expanded_queries.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        // Search with the first expanded query (to avoid too many searches)
+        let expanded_query = &analysis.expanded_queries[0];
+        self.vector_store
+            .search(expanded_query, self.config.vector_top_k / 2) // Use fewer results
+            .await
     }
 
     /// Filter results based on user's access permissions
@@ -432,12 +362,12 @@ impl HybridRagOrchestrator {
         merged
     }
 
-    /// Build the LLM prompt with context
-    fn build_prompt(
+    /// Build the LLM prompt with context (enhanced with query analysis)
+    fn build_prompt_enhanced(
         &self,
         question: &str,
         results: &[SearchResult],
-        _analysis: &QueryAnalysis,
+        analysis: &EnhancedQueryAnalysis,
     ) -> String {
         let mut prompt = String::new();
 
@@ -448,6 +378,35 @@ impl HybridRagOrchestrator {
         prompt.push_str("답변에 사용한 정보의 출처를 반드시 [출처: N] 형식으로 명시하세요.\n");
         prompt
             .push_str("컨텍스트에 없는 정보는 \"해당 정보를 찾을 수 없습니다\"라고 답변하세요.\n");
+
+        // Add query analysis hints
+        if !analysis.intents.is_empty() {
+            let intent_types: Vec<String> = analysis
+                .intents
+                .iter()
+                .map(|i| i.intent.to_string())
+                .collect();
+            prompt.push_str(&format!(
+                "\n질문 유형: {}\n",
+                intent_types.join(", ")
+            ));
+
+            // Add specific instructions based on intent
+            for intent_conf in &analysis.intents {
+                match intent_conf.intent {
+                    query_analysis::QueryIntent::Comparative => {
+                        prompt.push_str("비교 질문이므로 차이점과 유사점을 명확히 설명하세요.\n");
+                    }
+                    query_analysis::QueryIntent::Procedural => {
+                        prompt.push_str("절차 질문이므로 단계별로 순서대로 설명하세요.\n");
+                    }
+                    query_analysis::QueryIntent::Listing => {
+                        prompt.push_str("목록 질문이므로 항목을 나열하세요.\n");
+                    }
+                    _ => {}
+                }
+            }
+        }
 
         // Include ontology schema if configured
         if self.config.include_ontology {
@@ -475,10 +434,21 @@ impl HybridRagOrchestrator {
         }
         prompt.push_str("</context>\n\n");
 
-        // Question
+        // Question (use original, not rewritten)
         prompt.push_str("<question>\n");
         prompt.push_str(question);
         prompt.push_str("\n</question>\n\n");
+
+        // Sub-queries if present (for multi-intent queries)
+        if analysis.sub_queries.len() > 1 {
+            prompt.push_str("<sub_questions>\n");
+            prompt.push_str("이 질문은 여러 부분으로 나뉩니다:\n");
+            for (i, sq) in analysis.sub_queries.iter().enumerate() {
+                prompt.push_str(&format!("{}. {} (유형: {})\n", i + 1, sq.query, sq.intent));
+            }
+            prompt.push_str("각 부분에 대해 답변하세요.\n");
+            prompt.push_str("</sub_questions>\n\n");
+        }
 
         // Instructions
         prompt.push_str("<instructions>\n");
@@ -486,6 +456,9 @@ impl HybridRagOrchestrator {
         prompt.push_str("2. 질문에 직접 관련된 정보만 사용하세요.\n");
         prompt.push_str("3. 답변 작성 시 [출처: N] 형식으로 인용하세요.\n");
         prompt.push_str("4. 확실하지 않은 정보는 언급하지 마세요.\n");
+        if analysis.sub_queries.len() > 1 {
+            prompt.push_str("5. 여러 부분의 질문에 대해 각각 답변하세요.\n");
+        }
         prompt.push_str("</instructions>\n");
 
         prompt
@@ -539,6 +512,28 @@ impl HybridRagOrchestrator {
 
         // Normalize to 0-1 range (assuming RRF scores are typically < 1)
         (avg_score * 10.0).min(1.0)
+    }
+
+    /// Calculate confidence with query analysis (enhanced)
+    fn calculate_confidence_enhanced(
+        &self,
+        results: &[SearchResult],
+        analysis: &EnhancedQueryAnalysis,
+    ) -> f32 {
+        if results.is_empty() {
+            return 0.0;
+        }
+
+        // 1. Search result confidence
+        let avg_score: f32 = results.iter().map(|r| r.score).sum::<f32>() / results.len() as f32;
+        let result_confidence = (avg_score * 10.0).min(1.0);
+
+        // 2. Query analysis confidence
+        let analysis_confidence = analysis.overall_confidence;
+
+        // 3. Combined confidence (weighted average)
+        // 70% from search results, 30% from query analysis
+        result_confidence * 0.7 + analysis_confidence * 0.3
     }
 }
 
@@ -654,23 +649,6 @@ impl Default for PromptBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_query_intent_detection() {
-        // This would need async runtime for actual testing
-        // Just test the pattern matching logic directly
-
-        let procedural_keywords = ["어떻게", "절차", "방법"];
-        let comparative_keywords = ["차이", "비교"];
-
-        for kw in procedural_keywords {
-            assert!(kw.contains("어떻게") || kw.contains("절차") || kw.contains("방법"));
-        }
-
-        for kw in comparative_keywords {
-            assert!(kw.contains("차이") || kw.contains("비교"));
-        }
-    }
 
     #[test]
     fn test_prompt_builder() {
