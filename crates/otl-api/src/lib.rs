@@ -142,7 +142,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
 
     Router::new()
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
-        .nest("/api/v1", routes::api_routes())
+        .nest("/api/v1", routes::api_routes(state.clone()))
         .route(
             "/health",
             axum::routing::get(handlers::health::health_check),

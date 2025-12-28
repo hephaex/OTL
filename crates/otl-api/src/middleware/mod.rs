@@ -2,9 +2,7 @@
 //!
 //! Author: hephaex@gmail.com
 
-// Rate limiting temporarily disabled - tower_governor 0.8 API changes require further work
-// pub mod rate_limit;
-
+pub mod rate_limit;
 pub mod metrics;
 pub mod security_headers;
 
