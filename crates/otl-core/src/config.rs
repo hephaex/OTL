@@ -69,6 +69,9 @@ impl AppConfig {
         if let Ok(key) = std::env::var("OPENAI_API_KEY") {
             config.llm.openai_api_key = Some(key);
         }
+        if let Ok(base_url) = std::env::var("OPENAI_API_BASE") {
+            config.llm.openai_base_url = Some(base_url);
+        }
         if let Ok(url) = std::env::var("OLLAMA_URL") {
             config.llm.ollama_url = url;
         }

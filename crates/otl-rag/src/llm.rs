@@ -98,15 +98,25 @@ impl OpenAiClient {
 
     /// Create from config
     pub fn from_config(config: &LlmConfig) -> Result<Self> {
-        let api_key = config
-            .openai_api_key
-            .as_ref()
-            .ok_or_else(|| OtlError::ConfigError("OpenAI API key required".to_string()))?;
-
         let base_url = config
             .openai_base_url
             .clone()
             .unwrap_or_else(|| "https://api.openai.com/v1".to_string());
+
+        // API key is required for OpenAI, but optional for local/vLLM deployments
+        let api_key = config.openai_api_key.clone().unwrap_or_else(|| {
+            if base_url.contains("localhost") || base_url.contains("127.0.0.1") {
+                "not-required".to_string()
+            } else {
+                String::new()
+            }
+        });
+
+        if api_key.is_empty() {
+            return Err(OtlError::ConfigError(
+                "OpenAI API key required (set OPENAI_API_KEY or use OPENAI_API_BASE for local deployments)".to_string(),
+            ));
+        }
 
         // Configure reqwest client with appropriate timeouts for LLM operations
         let client = Client::builder()
@@ -118,7 +128,7 @@ impl OpenAiClient {
 
         Ok(Self {
             client,
-            api_key: api_key.clone(),
+            api_key,
             base_url,
             model: config.model.clone(),
             max_tokens: config.max_tokens,
