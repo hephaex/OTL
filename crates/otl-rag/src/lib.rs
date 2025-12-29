@@ -23,10 +23,19 @@ pub mod keyword;
 pub mod llm;
 pub mod query_analysis;
 
-pub use cache::{CacheConfig, CacheStatsReport, EmbeddingCache, QueryCache, RagCacheManager};
+#[cfg(feature = "redis-cache")]
+pub mod redis_cache;
+
+pub use cache::{
+    CacheConfig, CacheStatsReport, EmbeddingCache, GraphTraversalCache, QueryCache,
+    RagCacheManager, RankingCache,
+};
 pub use keyword::{KeywordSearchConfig, PostgresKeywordSearch, SearchMode, SearchStatistics};
 pub use llm::{create_llm_client, OllamaClient, OpenAiClient};
 pub use query_analysis::{EnhancedQueryAnalysis, QueryAnalyzer, QueryIntentWithConfidence, SubQuery};
+
+#[cfg(feature = "redis-cache")]
+pub use redis_cache::{RedisCache, RedisCacheConfig, TwoTierCache};
 
 // ============================================================================
 // Configuration

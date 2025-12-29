@@ -25,6 +25,12 @@ tracing = { workspace = true }
 moka = { version = "0.12", features = ["future"] }
 sqlx = { workspace = true }
 chrono = { workspace = true }
+redis = { version = "0.24", features = ["tokio-comp", "connection-manager", "aio"], optional = true }
+bincode = "1.3"
 
 [dev-dependencies]
 tokio-test = { workspace = true }
+
+[features]
+default = []
+redis-cache = ["redis"]
