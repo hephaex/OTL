@@ -33,7 +33,7 @@ spec:
 
       containers:
         - name: otl-api
-          image: ghcr.io/hephaex/otl-api:0.1.0
+          image: ghcr.io/hephaex/otl-api:0.2.0
           imagePullPolicy: Always
 
           ports:
