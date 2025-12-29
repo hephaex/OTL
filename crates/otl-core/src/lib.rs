@@ -9,9 +9,15 @@
 //! - Metadata storage (PostgreSQL)
 
 pub mod config;
+pub mod document_mgmt;
 pub mod metadata;
 
 pub use config::{AppConfig, ConfigError, DatabaseConfig, LlmConfig, LlmProvider, RagConfig};
+pub use document_mgmt::{
+    CollectionMembership, DiffChange, DiffChangeType, DocumentCollection, DocumentLineage,
+    DocumentTag, DocumentVersion, LanguageDetection, ProcessingStatus, ProcessingStepType,
+    RetentionPolicy, TagAssignment, VersionDiff,
+};
 pub use metadata::{MetadataRepository, MetadataStore};
 
 use chrono::{DateTime, Utc};
