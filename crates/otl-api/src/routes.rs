@@ -3,7 +3,10 @@
 //! Author: hephaex@gmail.com
 
 use crate::auth::middleware::auth_middleware;
-use crate::handlers::{auth, documents, graph, ontology, query, verify};
+use crate::handlers::{
+    auth, documents, documents_bulk, documents_collections, documents_lineage, documents_tags,
+    documents_versions, graph, ontology, query, verify,
+};
 use crate::middleware::rate_limit;
 use crate::state::AppState;
 use axum::{
@@ -58,6 +61,23 @@ pub fn api_routes(state: Arc<AppState>) -> Router<Arc<AppState>> {
             .route("/documents", post(documents::upload_document))
             .route("/documents/:id", get(documents::get_document))
             .route("/documents/:id", delete(documents::delete_document))
+            // Bulk operations
+            .route("/documents/bulk", post(documents_bulk::bulk_upload_documents))
+            .route("/documents/bulk", delete(documents_bulk::bulk_delete_documents))
+            // Versioning
+            .route("/documents/:id/versions", get(documents_versions::get_version_history))
+            .route("/documents/:id/versions", post(documents_versions::create_version))
+            .route("/documents/:id/versions/:old_version/diff/:new_version", get(documents_versions::compare_versions))
+            // Tags
+            .route("/documents/:id/tags", get(documents_tags::get_document_tags))
+            .route("/documents/:id/tags", post(documents_tags::assign_tags))
+            .route("/documents/:id/tags/auto", post(documents_tags::auto_tag_document))
+            // Lineage
+            .route("/documents/:id/lineage", get(documents_lineage::get_document_lineage))
+            // Collections
+            .route("/collections", get(documents_collections::list_collections))
+            .route("/collections", post(documents_collections::create_collection))
+            .route("/collections/:id/documents", post(documents_collections::add_to_collection))
             // Graph endpoints
             .route("/graph/entities", get(graph::list_entities))
             .route("/graph/entities/:id", get(graph::get_entity))
@@ -95,6 +115,23 @@ pub fn api_routes(state: Arc<AppState>) -> Router<Arc<AppState>> {
             .route("/documents", post(documents::upload_document))
             .route("/documents/:id", get(documents::get_document))
             .route("/documents/:id", delete(documents::delete_document))
+            // Bulk operations
+            .route("/documents/bulk", post(documents_bulk::bulk_upload_documents))
+            .route("/documents/bulk", delete(documents_bulk::bulk_delete_documents))
+            // Versioning
+            .route("/documents/:id/versions", get(documents_versions::get_version_history))
+            .route("/documents/:id/versions", post(documents_versions::create_version))
+            .route("/documents/:id/versions/:old_version/diff/:new_version", get(documents_versions::compare_versions))
+            // Tags
+            .route("/documents/:id/tags", get(documents_tags::get_document_tags))
+            .route("/documents/:id/tags", post(documents_tags::assign_tags))
+            .route("/documents/:id/tags/auto", post(documents_tags::auto_tag_document))
+            // Lineage
+            .route("/documents/:id/lineage", get(documents_lineage::get_document_lineage))
+            // Collections
+            .route("/collections", get(documents_collections::list_collections))
+            .route("/collections", post(documents_collections::create_collection))
+            .route("/collections/:id/documents", post(documents_collections::add_to_collection))
             // Graph endpoints
             .route("/graph/entities", get(graph::list_entities))
             .route("/graph/entities/:id", get(graph::get_entity))
