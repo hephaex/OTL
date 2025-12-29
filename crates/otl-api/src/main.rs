@@ -164,14 +164,19 @@ async fn main() -> anyhow::Result<()> {
     // Create router
     let app = create_router(state);
 
-    // Start server
+    // Start server with ConnectInfo for rate limiting IP extraction
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     tracing::info!("OTL API Server starting on http://{}", addr);
     tracing::info!("Swagger UI available at http://{}/swagger-ui/", addr);
     tracing::info!("OpenAPI spec at http://{}/api-docs/openapi.json", addr);
     tracing::info!("RAG initialized: {}", rag_initialized);
 
-    axum::serve(listener, app).await?;
+    // Use into_make_service_with_connect_info to provide client IP to rate limiter
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+    )
+    .await?;
 
     Ok(())
 }
