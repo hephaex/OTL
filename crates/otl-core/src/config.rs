@@ -81,6 +81,9 @@ impl AppConfig {
         if let Ok(model) = std::env::var("EMBEDDING_MODEL") {
             config.llm.embedding_model = model;
         }
+        if let Ok(provider) = std::env::var("EMBEDDING_PROVIDER") {
+            config.llm.embedding_provider = Some(provider.parse()?);
+        }
 
         // CORS origins from environment variable (comma-separated)
         if let Ok(origins) = std::env::var("CORS_ORIGINS") {
@@ -287,6 +290,9 @@ pub struct LlmConfig {
     /// LLM provider to use
     pub provider: LlmProvider,
 
+    /// Embedding provider (defaults to same as LLM provider if not specified)
+    pub embedding_provider: Option<LlmProvider>,
+
     /// OpenAI API key
     pub openai_api_key: Option<String>,
 
@@ -316,6 +322,7 @@ impl Default for LlmConfig {
     fn default() -> Self {
         Self {
             provider: LlmProvider::OpenAI,
+            embedding_provider: None, // Defaults to same as provider
             openai_api_key: None,
             openai_base_url: None,
             ollama_url: "http://localhost:11434".to_string(),
@@ -325,6 +332,13 @@ impl Default for LlmConfig {
             temperature: 0.1,
             timeout_secs: 60,
         }
+    }
+}
+
+impl LlmConfig {
+    /// Get the effective embedding provider (falls back to main provider)
+    pub fn get_embedding_provider(&self) -> LlmProvider {
+        self.embedding_provider.unwrap_or(self.provider)
     }
 }
 

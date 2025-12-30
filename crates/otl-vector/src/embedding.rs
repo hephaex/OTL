@@ -237,8 +237,14 @@ impl EmbeddingClient for OllamaEmbedding {
 // ============================================================================
 
 /// Create an embedding client from config
+///
+/// Uses `embedding_provider` if specified, otherwise falls back to the main `provider`.
+/// This allows using different providers for LLM (e.g., vLLM) and embeddings (e.g., Ollama).
 pub fn create_embedding_client(config: &LlmConfig) -> Result<Box<dyn EmbeddingClient>> {
-    match config.provider {
+    // Use embedding_provider if specified, otherwise fall back to main provider
+    let embedding_provider = config.get_embedding_provider();
+
+    match embedding_provider {
         LlmProvider::OpenAI | LlmProvider::Azure => {
             Ok(Box::new(OpenAiEmbedding::from_config(config)?))
         }
