@@ -778,23 +778,6 @@ impl QualityMetrics {
     }
 }
 
-/// Trait for items with confidence scores
-trait HasConfidence {
-    fn confidence(&self) -> f32;
-}
-
-impl HasConfidence for PendingEntity {
-    fn confidence(&self) -> f32 {
-        self.entity.confidence
-    }
-}
-
-impl HasConfidence for PendingRelation {
-    fn confidence(&self) -> f32 {
-        self.relation.confidence
-    }
-}
-
 // ============================================================================
 // Feedback Signals for Model Improvement
 // ============================================================================
@@ -1134,7 +1117,7 @@ mod tests {
 
         // Add and approve some entities
         let id1 = queue.add_entity(doc_id, create_entity("Entity1", "Type", 0.85));
-        let id2 = queue.add_entity(doc_id, create_entity("Entity2", "Type", 0.95)); // Auto-approved
+        let _id2 = queue.add_entity(doc_id, create_entity("Entity2", "Type", 0.95)); // Auto-approved
 
         queue.approve_entity(id1, "reviewer", Some("Corrected"));
 
