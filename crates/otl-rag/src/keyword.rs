@@ -290,7 +290,7 @@ impl PostgresKeywordSearch {
         let limit_i32 = limit as i32;
 
         // Convert natural language to tsquery format
-        let tsquery = self.convert_to_tsquery(query);
+        let tsquery = convert_to_tsquery(query);
 
         let rows = sqlx::query("SELECT * FROM search_boolean($1, $2)")
             .bind(tsquery)
@@ -399,18 +399,6 @@ impl PostgresKeywordSearch {
                 Ok(DocumentAcl::default())
             }
         }
-    }
-
-    /// Convert natural language query to PostgreSQL tsquery format
-    fn convert_to_tsquery(&self, query: &str) -> String {
-        // Simple conversion: replace AND, OR, NOT with &, |, !
-        query
-            .replace(" AND ", " & ")
-            .replace(" OR ", " | ")
-            .replace(" NOT ", " ! ")
-            .replace(" and ", " & ")
-            .replace(" or ", " | ")
-            .replace(" not ", " ! ")
     }
 
     /// Log search query for analytics
@@ -533,6 +521,23 @@ impl Default for SearchStatistics {
 }
 
 // ============================================================================
+// Helper Functions
+// ============================================================================
+
+/// Convert natural language query to PostgreSQL tsquery format
+///
+/// Replaces AND, OR, NOT with PostgreSQL tsquery operators &, |, !
+fn convert_to_tsquery(query: &str) -> String {
+    query
+        .replace(" AND ", " & ")
+        .replace(" OR ", " | ")
+        .replace(" NOT ", " ! ")
+        .replace(" and ", " & ")
+        .replace(" or ", " | ")
+        .replace(" not ", " ! ")
+}
+
+// ============================================================================
 // Tests
 // ============================================================================
 
@@ -542,21 +547,18 @@ mod tests {
 
     #[test]
     fn test_tsquery_conversion() {
-        let pool = Arc::new(unsafe { std::mem::zeroed() }); // Dummy pool for testing
-        let search = PostgresKeywordSearch::new(pool);
-
         assert_eq!(
-            search.convert_to_tsquery("machine AND learning"),
+            convert_to_tsquery("machine AND learning"),
             "machine & learning"
         );
 
         assert_eq!(
-            search.convert_to_tsquery("cat OR dog"),
+            convert_to_tsquery("cat OR dog"),
             "cat | dog"
         );
 
         assert_eq!(
-            search.convert_to_tsquery("rust NOT python"),
+            convert_to_tsquery("rust NOT python"),
             "rust ! python"
         );
     }
