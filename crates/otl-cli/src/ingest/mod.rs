@@ -46,8 +46,8 @@ pub struct IngestConfig {
     /// Number of parallel workers
     pub parallel_workers: usize,
 
-    /// Batch size for processing
-    pub batch_size: usize,
+    /// Batch size for processing (reserved for future batch API support)
+    pub _batch_size: usize,
 
     /// Enable watch mode
     pub watch: bool,
@@ -81,7 +81,7 @@ impl Default for IngestConfig {
     fn default() -> Self {
         Self {
             parallel_workers: 4,
-            batch_size: 100,
+            _batch_size: 100,
             watch: false,
             show_progress: true,
             dry_run: false,
@@ -170,7 +170,8 @@ impl IngestCheckpoint {
         self.updated_at = Utc::now();
     }
 
-    /// Mark file as in-progress
+    /// Mark file as in-progress (for future parallel checkpoint tracking)
+    #[allow(dead_code)]
     pub fn mark_in_progress(&mut self, file_path: &str) {
         self.in_progress_files.insert(file_path.to_string());
         self.updated_at = Utc::now();
@@ -570,6 +571,10 @@ impl IngestEngine {
     /// Print final statistics
     fn print_final_stats(&self) {
         println!("\n=== Ingestion Complete ===");
+        println!(
+            "Completion: {:.1}%",
+            self.checkpoint.completion_percentage()
+        );
         println!("Files processed: {}", self.checkpoint.stats.files_processed);
         println!("Files failed: {}", self.checkpoint.stats.files_failed);
         println!("Documents created: {}", self.checkpoint.stats.documents_created);

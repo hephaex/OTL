@@ -181,7 +181,7 @@ mod tests {
     fn test_ingest_config_default() {
         let config = IngestConfig::default();
         assert_eq!(config.parallel_workers, 4);
-        assert_eq!(config.batch_size, 100);
+        assert_eq!(config._batch_size, 100);
         assert!(!config.watch);
         assert!(config.show_progress);
         assert!(!config.dry_run);

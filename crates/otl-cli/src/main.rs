@@ -620,7 +620,7 @@ async fn cmd_ingest(
     // Build ingest config
     let ingest_config = IngestConfig {
         parallel_workers: parallel,
-        batch_size,
+        _batch_size: batch_size,
         watch,
         show_progress: progress,
         dry_run,
