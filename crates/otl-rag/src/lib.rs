@@ -245,7 +245,7 @@ impl HybridRagOrchestrator {
         let processing_time_ms = start_time.elapsed().as_millis() as u64;
 
         // 10. Calculate confidence based on both search results and query analysis
-        let confidence = self.calculate_confidence_enhanced(&final_results, &analysis);
+        let confidence = self.calculate_confidence(&final_results, &analysis);
 
         Ok(RagResponse {
             answer,
@@ -512,21 +512,8 @@ impl HybridRagOrchestrator {
         citations
     }
 
-    /// Calculate overall confidence based on search results
-    fn calculate_confidence(&self, results: &[SearchResult]) -> f32 {
-        if results.is_empty() {
-            return 0.0;
-        }
-
-        // Average of top-k scores, normalized
-        let avg_score: f32 = results.iter().map(|r| r.score).sum::<f32>() / results.len() as f32;
-
-        // Normalize to 0-1 range (assuming RRF scores are typically < 1)
-        (avg_score * 10.0).min(1.0)
-    }
-
-    /// Calculate confidence with query analysis (enhanced)
-    fn calculate_confidence_enhanced(
+    /// Calculate confidence based on search results and query analysis
+    fn calculate_confidence(
         &self,
         results: &[SearchResult],
         analysis: &EnhancedQueryAnalysis,
