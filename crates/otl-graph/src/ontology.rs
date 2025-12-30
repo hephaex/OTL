@@ -78,8 +78,7 @@ impl OntologySchema {
         // Check for duplicate
         if self.entities.contains_key(&name) {
             return Err(OtlError::InvalidOntology(format!(
-                "Entity type '{}' already exists",
-                name
+                "Entity type '{name}' already exists"
             )));
         }
 
@@ -95,8 +94,7 @@ impl OntologySchema {
         // Check for duplicate
         if self.relations.contains_key(&name) {
             return Err(OtlError::InvalidOntology(format!(
-                "Relation type '{}' already exists",
-                name
+                "Relation type '{name}' already exists"
             )));
         }
 
@@ -376,7 +374,7 @@ impl PropertyDef {
         // Validate pattern if provided
         if let Some(pattern) = &self.pattern {
             regex::Regex::new(pattern).map_err(|e| {
-                OtlError::ValidationError(format!("Invalid regex pattern '{}': {}", pattern, e))
+                OtlError::ValidationError(format!("Invalid regex pattern '{pattern}': {e}"))
             })?;
         }
 
@@ -384,8 +382,7 @@ impl PropertyDef {
         if let (Some(min), Some(max)) = (self.minimum, self.maximum) {
             if min > max {
                 return Err(OtlError::ValidationError(format!(
-                    "Minimum ({}) cannot be greater than maximum ({})",
-                    min, max
+                    "Minimum ({min}) cannot be greater than maximum ({max})"
                 )));
             }
         }
@@ -600,8 +597,7 @@ impl SchemaMigration {
                 for (rel_name, rel_type) in &schema.relations {
                     if &rel_type.from_entity == name || &rel_type.to_entity == name {
                         return Err(OtlError::InvalidOntology(format!(
-                            "Cannot remove entity type '{}': referenced by relation '{}'",
-                            name, rel_name
+                            "Cannot remove entity type '{name}': referenced by relation '{rel_name}'"
                         )));
                     }
                 }
@@ -610,7 +606,7 @@ impl SchemaMigration {
             }
             SchemaChange::ModifyEntityType { name, changes } => {
                 let entity = schema.entities.get_mut(name).ok_or_else(|| {
-                    OtlError::NotFound(format!("Entity type '{}' not found", name))
+                    OtlError::NotFound(format!("Entity type '{name}' not found"))
                 })?;
 
                 if let Some(label) = &changes.label {
@@ -641,7 +637,7 @@ impl SchemaMigration {
             }
             SchemaChange::ModifyRelationType { name, changes } => {
                 let relation = schema.relations.get_mut(name).ok_or_else(|| {
-                    OtlError::NotFound(format!("Relation type '{}' not found", name))
+                    OtlError::NotFound(format!("Relation type '{name}' not found"))
                 })?;
 
                 if let Some(label) = &changes.label {
@@ -781,8 +777,7 @@ impl SchemaDiff {
             diff.removed_entities.push((*name).clone());
             diff.backward_compatible = false;
             diff.compatibility_issues.push(format!(
-                "Removed entity type '{}' breaks backward compatibility",
-                name
+                "Removed entity type '{name}' breaks backward compatibility"
             ));
         }
 
@@ -819,8 +814,7 @@ impl SchemaDiff {
             diff.removed_relations.push((*name).clone());
             diff.backward_compatible = false;
             diff.compatibility_issues.push(format!(
-                "Removed relation type '{}' breaks backward compatibility",
-                name
+                "Removed relation type '{name}' breaks backward compatibility"
             ));
         }
 
@@ -834,8 +828,7 @@ impl SchemaDiff {
                 if relation_diff.from_changed || relation_diff.to_changed {
                     diff.backward_compatible = false;
                     diff.compatibility_issues.push(format!(
-                        "Changed entity types for relation '{}'",
-                        name
+                        "Changed entity types for relation '{name}'"
                     ));
                 }
 

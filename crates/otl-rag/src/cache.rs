@@ -905,25 +905,20 @@ impl RagCacheManager {
         let embedding_cache = self.embedding.clone();
 
         // Process queries in parallel (limit concurrency to avoid overload)
-        let results: Vec<_> = stream::iter(common_queries)
+        let results: Vec<Result<()>> = stream::iter(common_queries)
             .map(|query| {
                 let cache = embedding_cache.clone();
                 let compute_fn = compute_embedding.clone();
                 async move {
-                    if !cache.contains(&query).await {
-                        match compute_fn(query.clone()).await {
-                            Ok(embedding) => {
-                                cache.put(&query, embedding).await;
-                                Ok(())
-                            }
-                            Err(e) => {
-                                tracing::warn!("Failed to warm cache for query: {}", e);
-                                Err(e)
-                            }
-                        }
-                    } else {
-                        Ok(())
+                    if cache.contains(&query).await {
+                        return Ok(());
                     }
+                    let embedding = compute_fn(query.clone()).await.map_err(|e| {
+                        tracing::warn!("Failed to warm cache for query: {e}");
+                        e
+                    })?;
+                    cache.put(&query, embedding).await;
+                    Ok(())
                 }
             })
             .buffer_unordered(10) // Process 10 queries concurrently
@@ -974,8 +969,8 @@ impl RagCacheManager {
         // Entity + keyword combinations
         for entity in &entities {
             for keyword in &keywords {
-                combinations.push(format!("{} {}", entity, keyword));
-                combinations.push(format!("{} {}", keyword, entity));
+                combinations.push(format!("{entity} {keyword}"));
+                combinations.push(format!("{keyword} {entity}"));
             }
         }
 

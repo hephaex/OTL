@@ -19,19 +19,19 @@ use std::io::{Read, Write};
 /// Export schema to JSON
 pub fn export_json(schema: &OntologySchema) -> Result<String> {
     serde_json::to_string_pretty(schema)
-        .map_err(|e| OtlError::Other(anyhow::anyhow!("JSON serialization failed: {}", e)))
+        .map_err(|e| OtlError::Other(anyhow::anyhow!("JSON serialization failed: {e}")))
 }
 
 /// Export schema to JSON writer
 pub fn export_json_writer<W: Write>(schema: &OntologySchema, writer: W) -> Result<()> {
     serde_json::to_writer_pretty(writer, schema)
-        .map_err(|e| OtlError::Other(anyhow::anyhow!("JSON serialization failed: {}", e)))
+        .map_err(|e| OtlError::Other(anyhow::anyhow!("JSON serialization failed: {e}")))
 }
 
 /// Import schema from JSON string
 pub fn import_json(json: &str) -> Result<OntologySchema> {
     let schema: OntologySchema = serde_json::from_str(json)
-        .map_err(|e| OtlError::Other(anyhow::anyhow!("JSON deserialization failed: {}", e)))?;
+        .map_err(|e| OtlError::Other(anyhow::anyhow!("JSON deserialization failed: {e}")))?;
 
     schema.validate()?;
     Ok(schema)
@@ -40,7 +40,7 @@ pub fn import_json(json: &str) -> Result<OntologySchema> {
 /// Import schema from JSON reader
 pub fn import_json_reader<R: Read>(reader: R) -> Result<OntologySchema> {
     let schema: OntologySchema = serde_json::from_reader(reader)
-        .map_err(|e| OtlError::Other(anyhow::anyhow!("JSON deserialization failed: {}", e)))?;
+        .map_err(|e| OtlError::Other(anyhow::anyhow!("JSON deserialization failed: {e}")))?;
 
     schema.validate()?;
     Ok(schema)
@@ -53,19 +53,19 @@ pub fn import_json_reader<R: Read>(reader: R) -> Result<OntologySchema> {
 /// Export schema to YAML
 pub fn export_yaml(schema: &OntologySchema) -> Result<String> {
     serde_yaml::to_string(schema)
-        .map_err(|e| OtlError::Other(anyhow::anyhow!("YAML serialization failed: {}", e)))
+        .map_err(|e| OtlError::Other(anyhow::anyhow!("YAML serialization failed: {e}")))
 }
 
 /// Export schema to YAML writer
 pub fn export_yaml_writer<W: Write>(schema: &OntologySchema, writer: W) -> Result<()> {
     serde_yaml::to_writer(writer, schema)
-        .map_err(|e| OtlError::Other(anyhow::anyhow!("YAML serialization failed: {}", e)))
+        .map_err(|e| OtlError::Other(anyhow::anyhow!("YAML serialization failed: {e}")))
 }
 
 /// Import schema from YAML string
 pub fn import_yaml(yaml: &str) -> Result<OntologySchema> {
     let schema: OntologySchema = serde_yaml::from_str(yaml)
-        .map_err(|e| OtlError::Other(anyhow::anyhow!("YAML deserialization failed: {}", e)))?;
+        .map_err(|e| OtlError::Other(anyhow::anyhow!("YAML deserialization failed: {e}")))?;
 
     schema.validate()?;
     Ok(schema)
@@ -74,7 +74,7 @@ pub fn import_yaml(yaml: &str) -> Result<OntologySchema> {
 /// Import schema from YAML reader
 pub fn import_yaml_reader<R: Read>(reader: R) -> Result<OntologySchema> {
     let schema: OntologySchema = serde_yaml::from_reader(reader)
-        .map_err(|e| OtlError::Other(anyhow::anyhow!("YAML deserialization failed: {}", e)))?;
+        .map_err(|e| OtlError::Other(anyhow::anyhow!("YAML deserialization failed: {e}")))?;
 
     schema.validate()?;
     Ok(schema)
@@ -126,7 +126,7 @@ pub fn export_owl(schema: &OntologySchema) -> Result<String> {
     owl.push_str("    </owl:Ontology>\n\n");
 
     // Export entity types as OWL classes
-    for (_, entity) in &schema.entities {
+    for entity in schema.entities.values() {
         owl.push_str(&format!(
             "    <owl:Class rdf:about=\"#{}\">\n",
             escape_xml(&entity.name)
@@ -153,7 +153,7 @@ pub fn export_owl(schema: &OntologySchema) -> Result<String> {
         owl.push_str("    </owl:Class>\n\n");
 
         // Export properties as data properties or object properties
-        for (_, prop) in &entity.properties {
+        for prop in entity.properties.values() {
             let prop_type = match &prop.data_type {
                 PropertyType::Reference(_) => "owl:ObjectProperty",
                 _ => "owl:DatatypeProperty",
@@ -197,12 +197,12 @@ pub fn export_owl(schema: &OntologySchema) -> Result<String> {
                 ));
             }
 
-            owl.push_str(&format!("    </{}>\n\n", prop_type));
+            owl.push_str(&format!("    </{prop_type}>\n\n"));
         }
     }
 
     // Export relation types as object properties
-    for (_, relation) in &schema.relations {
+    for relation in schema.relations.values() {
         owl.push_str(&format!(
             "    <owl:ObjectProperty rdf:about=\"#{}\">\n",
             escape_xml(&relation.name)
@@ -262,7 +262,7 @@ pub fn export_rdf_turtle(schema: &OntologySchema) -> Result<String> {
     ttl.push_str(&format!("    owl:versionInfo \"{}\" .\n\n", schema.version));
 
     // Export entity types as classes
-    for (_, entity) in &schema.entities {
+    for entity in schema.entities.values() {
         ttl.push_str(&format!(":{}  rdf:type owl:Class ;\n", entity.name));
         ttl.push_str(&format!("    rdfs:label \"{}\" ", escape_turtle(&entity.label)));
 
@@ -276,14 +276,14 @@ pub fn export_rdf_turtle(schema: &OntologySchema) -> Result<String> {
 
         if let Some(parent) = &entity.parent {
             ttl.push_str(";\n");
-            ttl.push_str(&format!("    rdfs:subClassOf :{} ", parent));
+            ttl.push_str(&format!("    rdfs:subClassOf :{parent} "));
         }
 
         ttl.push_str(".\n\n");
     }
 
     // Export relation types as object properties
-    for (_, relation) in &schema.relations {
+    for relation in schema.relations.values() {
         ttl.push_str(&format!(
             ":{} rdf:type owl:ObjectProperty ;\n",
             relation.name

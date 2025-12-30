@@ -228,7 +228,7 @@ pub async fn compare_versions(
          WHERE document_id = $1 AND version_number = ANY($2)",
     )
     .bind(id)
-    .bind(&[old_version, new_version])
+    .bind([old_version, new_version])
     .fetch_all(&state.db_pool)
     .await
     .map_err(|e| AppError::Database(format!("Failed to fetch versions: {e}")))?;

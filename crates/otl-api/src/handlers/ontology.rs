@@ -187,7 +187,7 @@ pub async fn get_current_schema(
     let schema = ontology_repo
         .get_current_schema()
         .await
-        .map_err(|e| AppError::Internal(format!("Failed to get schema: {}", e)))?
+        .map_err(|e| AppError::Internal(format!("Failed to get schema: {e}")))?
         .ok_or_else(|| AppError::NotFound("No ontology schema found".to_string()))?;
 
     let response = OntologySchemaResponse::from(&schema);
@@ -215,7 +215,7 @@ pub async fn get_schema_version(
     state.increment_requests();
 
     let version = semver::Version::parse(&version_str)
-        .map_err(|e| AppError::BadRequest(format!("Invalid version format: {}", e)))?;
+        .map_err(|e| AppError::BadRequest(format!("Invalid version format: {e}")))?;
 
     let graph_db = state.graph_db.read().await;
     let graph_db = graph_db
@@ -232,9 +232,9 @@ pub async fn get_schema_version(
     let schema = ontology_repo
         .get_schema_version(&version)
         .await
-        .map_err(|e| AppError::Internal(format!("Failed to get schema: {}", e)))?
+        .map_err(|e| AppError::Internal(format!("Failed to get schema: {e}")))?
         .ok_or_else(|| {
-            AppError::NotFound(format!("Schema version {} not found", version_str))
+            AppError::NotFound(format!("Schema version {version_str} not found"))
         })?;
 
     let response = OntologySchemaResponse::from(&schema);
@@ -271,7 +271,7 @@ pub async fn list_schema_versions(
     let versions = ontology_repo
         .list_schema_versions()
         .await
-        .map_err(|e| AppError::Internal(format!("Failed to list versions: {}", e)))?;
+        .map_err(|e| AppError::Internal(format!("Failed to list versions: {e}")))?;
 
     Ok((StatusCode::OK, Json(versions)))
 }
@@ -355,7 +355,7 @@ pub async fn create_schema(
 
     // Parse version
     let version = semver::Version::parse(&req.version)
-        .map_err(|e| AppError::BadRequest(format!("Invalid version format: {}", e)))?;
+        .map_err(|e| AppError::BadRequest(format!("Invalid version format: {e}")))?;
 
     // Build schema
     let mut schema = OntologySchema::new(req.name, version);
@@ -378,7 +378,7 @@ pub async fn create_schema(
 
         schema
             .add_entity_type(entity)
-            .map_err(|e| AppError::BadRequest(format!("Invalid entity: {}", e)))?;
+            .map_err(|e| AppError::BadRequest(format!("Invalid entity: {e}")))?;
     }
 
     // Add relations
@@ -393,13 +393,13 @@ pub async fn create_schema(
 
         schema
             .add_relation_type(relation)
-            .map_err(|e| AppError::BadRequest(format!("Invalid relation: {}", e)))?;
+            .map_err(|e| AppError::BadRequest(format!("Invalid relation: {e}")))?;
     }
 
     // Validate schema
     schema
         .validate()
-        .map_err(|e| AppError::BadRequest(format!("Schema validation failed: {}", e)))?;
+        .map_err(|e| AppError::BadRequest(format!("Schema validation failed: {e}")))?;
 
     // Store schema
     let graph_db = state.graph_db.read().await;
@@ -417,7 +417,7 @@ pub async fn create_schema(
     ontology_repo
         .store_schema(&schema)
         .await
-        .map_err(|e| AppError::Internal(format!("Failed to store schema: {}", e)))?;
+        .map_err(|e| AppError::Internal(format!("Failed to store schema: {e}")))?;
 
     let response = OntologySchemaResponse::from(&schema);
 
@@ -445,9 +445,9 @@ pub async fn compare_schemas(
     state.increment_requests();
 
     let from_version = semver::Version::parse(&params.from)
-        .map_err(|e| AppError::BadRequest(format!("Invalid 'from' version: {}", e)))?;
+        .map_err(|e| AppError::BadRequest(format!("Invalid 'from' version: {e}")))?;
     let to_version = semver::Version::parse(&params.to)
-        .map_err(|e| AppError::BadRequest(format!("Invalid 'to' version: {}", e)))?;
+        .map_err(|e| AppError::BadRequest(format!("Invalid 'to' version: {e}")))?;
 
     let graph_db = state.graph_db.read().await;
     let graph_db = graph_db
@@ -464,13 +464,13 @@ pub async fn compare_schemas(
     let old_schema = ontology_repo
         .get_schema_version(&from_version)
         .await
-        .map_err(|e| AppError::Internal(format!("Failed to get old schema: {}", e)))?
+        .map_err(|e| AppError::Internal(format!("Failed to get old schema: {e}")))?
         .ok_or_else(|| AppError::NotFound(format!("Schema version {} not found", params.from)))?;
 
     let new_schema = ontology_repo
         .get_schema_version(&to_version)
         .await
-        .map_err(|e| AppError::Internal(format!("Failed to get new schema: {}", e)))?
+        .map_err(|e| AppError::Internal(format!("Failed to get new schema: {e}")))?
         .ok_or_else(|| AppError::NotFound(format!("Schema version {} not found", params.to)))?;
 
     let diff = SchemaDiff::compare(&old_schema, &new_schema);
@@ -520,19 +520,19 @@ pub async fn export_schema(
     // Get schema
     let schema = if let Some(version_str) = &params.version {
         let version = semver::Version::parse(version_str)
-            .map_err(|e| AppError::BadRequest(format!("Invalid version: {}", e)))?;
+            .map_err(|e| AppError::BadRequest(format!("Invalid version: {e}")))?;
         ontology_repo
             .get_schema_version(&version)
             .await
-            .map_err(|e| AppError::Internal(format!("Failed to get schema: {}", e)))?
+            .map_err(|e| AppError::Internal(format!("Failed to get schema: {e}")))?
             .ok_or_else(|| {
-                AppError::NotFound(format!("Schema version {} not found", version_str))
+                AppError::NotFound(format!("Schema version {version_str} not found"))
             })?
     } else {
         ontology_repo
             .get_current_schema()
             .await
-            .map_err(|e| AppError::Internal(format!("Failed to get schema: {}", e)))?
+            .map_err(|e| AppError::Internal(format!("Failed to get schema: {e}")))?
             .ok_or_else(|| AppError::NotFound("No ontology schema found".to_string()))?
     };
 
@@ -541,22 +541,22 @@ pub async fn export_schema(
         "json" => (
             "application/json",
             export_json(&schema)
-                .map_err(|e| AppError::Internal(format!("Export failed: {}", e)))?,
+                .map_err(|e| AppError::Internal(format!("Export failed: {e}")))?,
         ),
         "yaml" => (
             "application/x-yaml",
             export_yaml(&schema)
-                .map_err(|e| AppError::Internal(format!("Export failed: {}", e)))?,
+                .map_err(|e| AppError::Internal(format!("Export failed: {e}")))?,
         ),
         "owl" => (
             "application/rdf+xml",
             export_owl(&schema)
-                .map_err(|e| AppError::Internal(format!("Export failed: {}", e)))?,
+                .map_err(|e| AppError::Internal(format!("Export failed: {e}")))?,
         ),
         "rdf" | "turtle" => (
             "text/turtle",
             export_rdf_turtle(&schema)
-                .map_err(|e| AppError::Internal(format!("Export failed: {}", e)))?,
+                .map_err(|e| AppError::Internal(format!("Export failed: {e}")))?,
         ),
         _ => {
             return Err(AppError::BadRequest(
@@ -609,13 +609,13 @@ pub async fn import_schema(
 
     // Parse schema based on format
     let schema_str = String::from_utf8(body.to_vec())
-        .map_err(|e| AppError::BadRequest(format!("Invalid UTF-8: {}", e)))?;
+        .map_err(|e| AppError::BadRequest(format!("Invalid UTF-8: {e}")))?;
 
     let schema = match params.format.to_lowercase().as_str() {
         "json" => import_json(&schema_str)
-            .map_err(|e| AppError::BadRequest(format!("Import failed: {}", e)))?,
+            .map_err(|e| AppError::BadRequest(format!("Import failed: {e}")))?,
         "yaml" => import_yaml(&schema_str)
-            .map_err(|e| AppError::BadRequest(format!("Import failed: {}", e)))?,
+            .map_err(|e| AppError::BadRequest(format!("Import failed: {e}")))?,
         _ => {
             return Err(AppError::BadRequest(
                 "Invalid format. Supported: json, yaml".to_string(),
@@ -639,7 +639,7 @@ pub async fn import_schema(
     ontology_repo
         .store_schema(&schema)
         .await
-        .map_err(|e| AppError::Internal(format!("Failed to store schema: {}", e)))?;
+        .map_err(|e| AppError::Internal(format!("Failed to store schema: {e}")))?;
 
     let response = OntologySchemaResponse::from(&schema);
 
@@ -670,7 +670,7 @@ pub async fn validate_schema(
 
     // Parse version
     let version = semver::Version::parse(&req.version)
-        .map_err(|e| AppError::BadRequest(format!("Invalid version format: {}", e)))?;
+        .map_err(|e| AppError::BadRequest(format!("Invalid version format: {e}")))?;
 
     // Build schema
     let mut schema = OntologySchema::new(req.name, version);
@@ -693,7 +693,7 @@ pub async fn validate_schema(
 
         schema
             .add_entity_type(entity)
-            .map_err(|e| AppError::BadRequest(format!("Invalid entity: {}", e)))?;
+            .map_err(|e| AppError::BadRequest(format!("Invalid entity: {e}")))?;
     }
 
     // Add relations
@@ -707,13 +707,13 @@ pub async fn validate_schema(
 
         schema
             .add_relation_type(relation)
-            .map_err(|e| AppError::BadRequest(format!("Invalid relation: {}", e)))?;
+            .map_err(|e| AppError::BadRequest(format!("Invalid relation: {e}")))?;
     }
 
     // Validate schema
     schema
         .validate()
-        .map_err(|e| AppError::BadRequest(format!("Schema validation failed: {}", e)))?;
+        .map_err(|e| AppError::BadRequest(format!("Schema validation failed: {e}")))?;
 
     Ok((
         StatusCode::OK,
@@ -749,8 +749,7 @@ fn parse_property_type(type_str: &str) -> Result<PropertyType, AppError> {
                 Ok(PropertyType::Array(Box::new(inner_type)))
             } else {
                 Err(AppError::BadRequest(format!(
-                    "Invalid property type: {}",
-                    type_str
+                    "Invalid property type: {type_str}"
                 )))
             }
         }

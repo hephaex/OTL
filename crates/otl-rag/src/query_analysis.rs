@@ -184,7 +184,7 @@ impl QueryAnalyzer {
             r#"<s>
 You are a query analysis expert. Analyze the following user query and provide structured information.
 
-Query: "{}"
+Query: "{query}"
 
 Provide your analysis in the following JSON format:
 {{
@@ -227,8 +227,7 @@ Intent types:
 For compound queries (e.g., "Compare X AND show Y"), detect multiple intents and decompose into sub-queries.
 
 Respond with ONLY the JSON, no additional text.
-</s>"#,
-            query
+</s>"#
         )
     }
 
@@ -273,7 +272,7 @@ Respond with ONLY the JSON, no additional text.
         }
 
         let parsed: LlmAnalysisResponse = serde_json::from_str(&json_str)
-            .map_err(|e| OtlError::LlmError(format!("Failed to parse analysis JSON: {}", e)))?;
+            .map_err(|e| OtlError::LlmError(format!("Failed to parse analysis JSON: {e}")))?;
 
         // Convert LLM response to our types
         let intents: Vec<QueryIntentWithConfidence> = parsed

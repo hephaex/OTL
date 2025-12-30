@@ -90,7 +90,7 @@ impl SurrealOntologyRepository {
             )
             .await
             .map_err(|e| {
-                OtlError::DatabaseError(format!("Failed to create ontology_schema table: {}", e))
+                OtlError::DatabaseError(format!("Failed to create ontology_schema table: {e}"))
             })?;
 
         // Define schema_migration table
@@ -109,7 +109,7 @@ impl SurrealOntologyRepository {
             )
             .await
             .map_err(|e| {
-                OtlError::DatabaseError(format!("Failed to create schema_migration table: {}", e))
+                OtlError::DatabaseError(format!("Failed to create schema_migration table: {e}"))
             })?;
 
         Ok(())
@@ -150,7 +150,7 @@ impl OntologyRepository for SurrealOntologyRepository {
             name: schema.name.clone(),
             description: schema.description.clone(),
             schema_data: serde_json::to_value(schema)
-                .map_err(|e| OtlError::Other(anyhow::anyhow!("Serialization error: {}", e)))?,
+                .map_err(|e| OtlError::Other(anyhow::anyhow!("Serialization error: {e}")))?,
             created_at: Some(schema.created_at),
             updated_at: Some(schema.updated_at),
             author: schema.author.clone(),
@@ -162,7 +162,7 @@ impl OntologyRepository for SurrealOntologyRepository {
             .content(record)
             .await
             .map_err(|e| {
-                OtlError::DatabaseError(format!("Failed to store ontology schema: {}", e))
+                OtlError::DatabaseError(format!("Failed to store ontology schema: {e}"))
             })?;
 
         Ok(())
@@ -175,16 +175,16 @@ impl OntologyRepository for SurrealOntologyRepository {
             .query("SELECT * FROM ontology_schema ORDER BY created_at DESC LIMIT 1")
             .await
             .map_err(|e| {
-                OtlError::DatabaseError(format!("Failed to query current schema: {}", e))
+                OtlError::DatabaseError(format!("Failed to query current schema: {e}"))
             })?;
 
         let records: Vec<SchemaRecord> = result.take(0).map_err(|e| {
-            OtlError::DatabaseError(format!("Failed to extract schema records: {}", e))
+            OtlError::DatabaseError(format!("Failed to extract schema records: {e}"))
         })?;
 
         if let Some(record) = records.first() {
             let schema: OntologySchema = serde_json::from_value(record.schema_data.clone())
-                .map_err(|e| OtlError::Other(anyhow::anyhow!("Deserialization error: {}", e)))?;
+                .map_err(|e| OtlError::Other(anyhow::anyhow!("Deserialization error: {e}")))?;
             Ok(Some(schema))
         } else {
             Ok(None)
@@ -199,16 +199,16 @@ impl OntologyRepository for SurrealOntologyRepository {
             .bind(("version", version_str))
             .await
             .map_err(|e| {
-                OtlError::DatabaseError(format!("Failed to query schema version: {}", e))
+                OtlError::DatabaseError(format!("Failed to query schema version: {e}"))
             })?;
 
         let records: Vec<SchemaRecord> = result.take(0).map_err(|e| {
-            OtlError::DatabaseError(format!("Failed to extract schema records: {}", e))
+            OtlError::DatabaseError(format!("Failed to extract schema records: {e}"))
         })?;
 
         if let Some(record) = records.first() {
             let schema: OntologySchema = serde_json::from_value(record.schema_data.clone())
-                .map_err(|e| OtlError::Other(anyhow::anyhow!("Deserialization error: {}", e)))?;
+                .map_err(|e| OtlError::Other(anyhow::anyhow!("Deserialization error: {e}")))?;
             Ok(Some(schema))
         } else {
             Ok(None)
@@ -221,17 +221,17 @@ impl OntologyRepository for SurrealOntologyRepository {
             .query("SELECT version, name, created_at, author FROM ontology_schema ORDER BY created_at DESC")
             .await
             .map_err(|e| {
-                OtlError::DatabaseError(format!("Failed to list schema versions: {}", e))
+                OtlError::DatabaseError(format!("Failed to list schema versions: {e}"))
             })?;
 
         let records: Vec<SchemaRecord> = result.take(0).map_err(|e| {
-            OtlError::DatabaseError(format!("Failed to extract schema records: {}", e))
+            OtlError::DatabaseError(format!("Failed to extract schema records: {e}"))
         })?;
 
         let mut versions = Vec::new();
         for record in records {
             let version = semver::Version::parse(&record.version).map_err(|e| {
-                OtlError::Other(anyhow::anyhow!("Invalid version string: {}", e))
+                OtlError::Other(anyhow::anyhow!("Invalid version string: {e}"))
             })?;
 
             versions.push(SchemaVersionInfo {
@@ -251,7 +251,7 @@ impl OntologyRepository for SurrealOntologyRepository {
             from_version: migration.from_version.to_string(),
             to_version: migration.to_version.to_string(),
             migration_data: serde_json::to_value(migration)
-                .map_err(|e| OtlError::Other(anyhow::anyhow!("Serialization error: {}", e)))?,
+                .map_err(|e| OtlError::Other(anyhow::anyhow!("Serialization error: {e}")))?,
             description: migration.description.clone(),
             created_at: Some(migration.created_at),
             author: migration.author.clone(),
@@ -263,7 +263,7 @@ impl OntologyRepository for SurrealOntologyRepository {
             .content(record)
             .await
             .map_err(|e| {
-                OtlError::DatabaseError(format!("Failed to store migration: {}", e))
+                OtlError::DatabaseError(format!("Failed to store migration: {e}"))
             })?;
 
         Ok(())
@@ -275,17 +275,17 @@ impl OntologyRepository for SurrealOntologyRepository {
             .query("SELECT * FROM schema_migration ORDER BY created_at DESC")
             .await
             .map_err(|e| {
-                OtlError::DatabaseError(format!("Failed to list migrations: {}", e))
+                OtlError::DatabaseError(format!("Failed to list migrations: {e}"))
             })?;
 
         let records: Vec<MigrationRecord> = result.take(0).map_err(|e| {
-            OtlError::DatabaseError(format!("Failed to extract migration records: {}", e))
+            OtlError::DatabaseError(format!("Failed to extract migration records: {e}"))
         })?;
 
         let mut migrations = Vec::new();
         for record in records {
             let migration: SchemaMigration = serde_json::from_value(record.migration_data)
-                .map_err(|e| OtlError::Other(anyhow::anyhow!("Deserialization error: {}", e)))?;
+                .map_err(|e| OtlError::Other(anyhow::anyhow!("Deserialization error: {e}")))?;
             migrations.push(migration);
         }
 
@@ -307,16 +307,16 @@ impl OntologyRepository for SurrealOntologyRepository {
             .bind(("to", to_str))
             .await
             .map_err(|e| {
-                OtlError::DatabaseError(format!("Failed to query migration: {}", e))
+                OtlError::DatabaseError(format!("Failed to query migration: {e}"))
             })?;
 
         let records: Vec<MigrationRecord> = result.take(0).map_err(|e| {
-            OtlError::DatabaseError(format!("Failed to extract migration records: {}", e))
+            OtlError::DatabaseError(format!("Failed to extract migration records: {e}"))
         })?;
 
         if let Some(record) = records.first() {
             let migration: SchemaMigration = serde_json::from_value(record.migration_data.clone())
-                .map_err(|e| OtlError::Other(anyhow::anyhow!("Deserialization error: {}", e)))?;
+                .map_err(|e| OtlError::Other(anyhow::anyhow!("Deserialization error: {e}")))?;
             Ok(Some(migration))
         } else {
             Ok(None)
@@ -331,7 +331,7 @@ impl OntologyRepository for SurrealOntologyRepository {
             .bind(("version", version_str))
             .await
             .map_err(|e| {
-                OtlError::DatabaseError(format!("Failed to delete schema version: {}", e))
+                OtlError::DatabaseError(format!("Failed to delete schema version: {e}"))
             })?;
 
         Ok(())

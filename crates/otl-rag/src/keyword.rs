@@ -124,7 +124,7 @@ impl PostgresKeywordSearch {
         .bind(word_count)
         .execute(&*self.pool)
         .await
-        .map_err(|e| OtlError::DatabaseError(format!("Failed to index chunk: {}", e)))?;
+        .map_err(|e| OtlError::DatabaseError(format!("Failed to index chunk: {e}")))?;
 
         Ok(())
     }
@@ -138,7 +138,7 @@ impl PostgresKeywordSearch {
             .pool
             .begin()
             .await
-            .map_err(|e| OtlError::DatabaseError(format!("Failed to begin transaction: {}", e)))?;
+            .map_err(|e| OtlError::DatabaseError(format!("Failed to begin transaction: {e}")))?;
 
         for (document_id, chunk_id, content) in chunks {
             let content_length = content.len() as i32;
@@ -162,12 +162,12 @@ impl PostgresKeywordSearch {
             .bind(word_count)
             .execute(&mut *tx)
             .await
-            .map_err(|e| OtlError::DatabaseError(format!("Failed to index chunk in batch: {}", e)))?;
+            .map_err(|e| OtlError::DatabaseError(format!("Failed to index chunk in batch: {e}")))?;
         }
 
         tx.commit()
             .await
-            .map_err(|e| OtlError::DatabaseError(format!("Failed to commit transaction: {}", e)))?;
+            .map_err(|e| OtlError::DatabaseError(format!("Failed to commit transaction: {e}")))?;
 
         Ok(())
     }
@@ -178,7 +178,7 @@ impl PostgresKeywordSearch {
             .bind(document_id)
             .execute(&*self.pool)
             .await
-            .map_err(|e| OtlError::DatabaseError(format!("Failed to delete document: {}", e)))?;
+            .map_err(|e| OtlError::DatabaseError(format!("Failed to delete document: {e}")))?;
 
         Ok(result.rows_affected())
     }
@@ -222,7 +222,7 @@ impl PostgresKeywordSearch {
             .bind(self.config.b)
             .fetch_all(&*self.pool)
             .await
-            .map_err(|e| OtlError::SearchError(format!("BM25 search failed: {}", e)))?;
+            .map_err(|e| OtlError::SearchError(format!("BM25 search failed: {e}")))?;
 
         let mut results = Vec::new();
 
@@ -259,7 +259,7 @@ impl PostgresKeywordSearch {
             .bind(limit_i32)
             .fetch_all(&*self.pool)
             .await
-            .map_err(|e| OtlError::SearchError(format!("Phrase search failed: {}", e)))?;
+            .map_err(|e| OtlError::SearchError(format!("Phrase search failed: {e}")))?;
 
         let mut results = Vec::new();
 
@@ -297,7 +297,7 @@ impl PostgresKeywordSearch {
             .bind(limit_i32)
             .fetch_all(&*self.pool)
             .await
-            .map_err(|e| OtlError::SearchError(format!("Boolean search failed: {}", e)))?;
+            .map_err(|e| OtlError::SearchError(format!("Boolean search failed: {e}")))?;
 
         let mut results = Vec::new();
 
@@ -333,7 +333,7 @@ impl PostgresKeywordSearch {
             .bind(limit_i32)
             .fetch_all(&*self.pool)
             .await
-            .map_err(|e| OtlError::SearchError(format!("Fuzzy search failed: {}", e)))?;
+            .map_err(|e| OtlError::SearchError(format!("Fuzzy search failed: {e}")))?;
 
         let mut results = Vec::new();
 
@@ -367,7 +367,7 @@ impl PostgresKeywordSearch {
         .bind(document_id)
         .fetch_optional(&*self.pool)
         .await
-        .map_err(|e| OtlError::DatabaseError(format!("Failed to fetch document ACL: {}", e)))?;
+        .map_err(|e| OtlError::DatabaseError(format!("Failed to fetch document ACL: {e}")))?;
 
         match row {
             Some(row) => {
@@ -422,7 +422,7 @@ impl PostgresKeywordSearch {
         .bind(top_score)
         .execute(&*self.pool)
         .await
-        .map_err(|e| OtlError::DatabaseError(format!("Failed to log query: {}", e)))?;
+        .map_err(|e| OtlError::DatabaseError(format!("Failed to log query: {e}")))?;
 
         Ok(())
     }
@@ -434,7 +434,7 @@ impl PostgresKeywordSearch {
         )
         .fetch_optional(&*self.pool)
         .await
-        .map_err(|e| OtlError::DatabaseError(format!("Failed to fetch statistics: {}", e)))?;
+        .map_err(|e| OtlError::DatabaseError(format!("Failed to fetch statistics: {e}")))?;
 
         match row {
             Some(row) => {
@@ -458,7 +458,7 @@ impl PostgresKeywordSearch {
         sqlx::query("SELECT reindex_fts_documents()")
             .execute(&*self.pool)
             .await
-            .map_err(|e| OtlError::DatabaseError(format!("Failed to reindex: {}", e)))?;
+            .map_err(|e| OtlError::DatabaseError(format!("Failed to reindex: {e}")))?;
 
         Ok(())
     }
@@ -468,7 +468,7 @@ impl PostgresKeywordSearch {
         let result = sqlx::query("SELECT cleanup_old_query_logs()")
             .execute(&*self.pool)
             .await
-            .map_err(|e| OtlError::DatabaseError(format!("Failed to cleanup logs: {}", e)))?;
+            .map_err(|e| OtlError::DatabaseError(format!("Failed to cleanup logs: {e}")))?;
 
         Ok(result.rows_affected())
     }
