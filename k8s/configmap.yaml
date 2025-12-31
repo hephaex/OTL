@@ -24,7 +24,8 @@ data:
   QDRANT_COLLECTION: "otl_chunks"
   VECTOR_DIMENSION: "1536"
 
-  POSTGRES_URL: "postgres://postgres:5432/otl"
+  POSTGRES_URL: "postgres://otl:otl_password@postgres:5432/otl"
+  DATABASE_URL: "postgres://otl:otl_password@postgres:5432/otl"
 
   # LLM Configuration
   LLM_PROVIDER: "openai"
