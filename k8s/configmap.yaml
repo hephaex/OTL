@@ -22,20 +22,22 @@ data:
 
   QDRANT_URL: "http://qdrant:6334"
   QDRANT_COLLECTION: "otl_chunks"
-  VECTOR_DIMENSION: "1536"
+  VECTOR_DIMENSION: "768"
 
   POSTGRES_URL: "postgres://otl:otl_password@postgres:5432/otl"
   DATABASE_URL: "postgres://otl:otl_password@postgres:5432/otl"
 
-  # LLM Configuration
+  # LLM Configuration (vLLM via OpenAI-compatible API)
   LLM_PROVIDER: "openai"
-  LLM_MODEL: "gpt-4o-mini"
-  EMBEDDING_MODEL: "text-embedding-3-small"
+  LLM_MODEL: "Qwen/Qwen2.5-7B-Instruct"
   LLM_MAX_TOKENS: "2048"
   LLM_TEMPERATURE: "0.1"
+  OPENAI_API_BASE: "http://10.100.64.35:8000/v1"
 
-  # Ollama (optional local LLM)
-  OLLAMA_URL: "http://ollama:11434"
+  # Embedding Configuration (Ollama on GPU server)
+  EMBEDDING_PROVIDER: "ollama"
+  EMBEDDING_MODEL: "nomic-embed-text"
+  OLLAMA_URL: "http://10.100.64.35:11434"
 
   # RAG Configuration
   RAG_VECTOR_TOP_K: "20"
